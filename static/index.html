@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Windows 本地 SDXL Safetensors 生图工作台">
   <title>SDXL Safetensors Studio</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260820214208">
+  <link rel="stylesheet" href="/static/styles.css?v=202608210021">
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到工作区</a>
@@ -42,6 +42,21 @@
             <input id="initImageInput" type="file" accept="image/png,image/jpeg,image/webp">
             <div id="initImagePreview" class="init-image-preview" hidden><img id="initImageThumbnail" alt="图生图参考图预览"><button id="removeInitImage" type="button">移除参考图</button></div>
             <input id="initImageName" type="hidden">
+            <div id="maskEditor" class="mask-editor" hidden>
+              <div class="mask-heading"><div><span class="eyebrow">LOCAL INPAINT</span><strong>局部重绘蒙版</strong></div><span id="maskState" class="mono">未绘制</span></div>
+              <div id="maskCanvasFrame" class="mask-canvas-frame" aria-label="蒙版绘制画布">
+                <canvas id="maskSourceCanvas"></canvas>
+                <canvas id="maskPaintCanvas"></canvas>
+              </div>
+              <div class="mask-tools">
+                <button id="maskBrush" class="mask-tool active" type="button" aria-pressed="true">画笔</button>
+                <button id="maskEraser" class="mask-tool" type="button" aria-pressed="false">橡皮</button>
+                <button id="clearMask" class="mask-tool" type="button">清空</button>
+              </div>
+              <div class="range-row"><label for="maskBrushSize">笔刷大小 <output id="maskBrushSizeValue">48</output></label><input id="maskBrushSize" type="range" min="8" max="200" step="2" value="48"></div>
+              <input id="maskImageName" type="hidden">
+              <p class="helper">红色覆盖区将被重绘，透明区域保持原图。拖动绘制，橡皮可恢复保护区域。</p>
+            </div>
             <div class="range-row"><label for="strength">重绘强度 <output id="strengthValue">0.65</output></label><input id="strength" type="range" min="0.01" max="1" step="0.01" value="0.65"></div>
             <p class="helper">越低越接近参考图，越高改动越大。上传后会转换为本地 PNG。</p>
           </div>
@@ -91,6 +106,6 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=20260820214208"></script>
+  <script src="/static/app.js?v=202608210021"></script>
 </body>
 </html>

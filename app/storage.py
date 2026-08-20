@@ -78,12 +78,14 @@ class Storage:
                 image_name = f"{path.stem}.png"
                 if (self.history_dir / image_name).is_file():
                     init_image = item.get("init_image")
+                    mask_image = item.get("mask_image")
                     records.append(
                         {
                             **item,
                             "id": path.stem,
                             "image_url": f"/history/{image_name}",
                             "init_image_url": f"/inputs/{init_image}" if init_image else None,
+                            "mask_image_url": f"/inputs/{mask_image}" if mask_image else None,
                         }
                     )
             except (OSError, json.JSONDecodeError):

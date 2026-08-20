@@ -16,6 +16,14 @@ const progressDetail = $("#progressDetail");
 const img2imgControls = $("#img2imgControls");
 const initImageInput = $("#initImageInput");
 const initImageName = $("#initImageName");
+const maskEditor = $("#maskEditor");
+const maskSourceCanvas = $("#maskSourceCanvas");
+const maskPaintCanvas = $("#maskPaintCanvas");
+const maskImageName = $("#maskImageName");
+let maskTool = "brush";
+let maskDrawing = false;
+let maskDirty = false;
+let lastMaskPoint = null;
 let historyItems = [];
 let toastTimer;
 
@@ -100,6 +108,7 @@ function collectParameters() {
     seed: Number($("#seed").value),
     batch_size: Number($("#batchSize").value),
     init_image: mode === "img2img" ? initImageName.value || null : null,
+    mask_image: mode === "img2img" ? maskImageName.value || null : null,
     strength: Number($("#strength").value),
   };
 }
@@ -110,11 +119,14 @@ function setMode(mode) {
   initImageInput.required = mode === "img2img" && !initImageName.value;
 }
 
-function showInitImage(filename, imageUrl) {
+function showInitImage(filename, imageUrl, maskFilename = "", maskUrl = "") {
   initImageName.value = filename || "";
   $("#initImageThumbnail").src = imageUrl || "";
   $("#initImagePreview").hidden = !filename;
+  maskEditor.hidden = !filename;
   initImageInput.required = !filename && !img2imgControls.hidden;
+  if (filename && imageUrl) loadMaskSource(imageUrl, maskFilename, maskUrl);
+  else resetMaskEditor();
 }
 
 async function uploadInitImage() {
@@ -131,6 +143,112 @@ async function uploadInitImage() {
     initImageInput.value = "";
     notify(error.message, true);
   } finally { initImageInput.disabled = false; }
+}
+
+function resetMaskEditor() {
+  maskImageName.value = "";
+  maskDirty = false;
+  lastMaskPoint = null;
+  $("#maskState").textContent = "未绘制";
+  maskPaintCanvas.getContext("2d").clearRect(0, 0, maskPaintCanvas.width, maskPaintCanvas.height);
+}
+
+function loadMaskSource(imageUrl, maskFilename = "", maskUrl = "") {
+  const source = new Image();
+  source.onload = () => {
+    [maskSourceCanvas, maskPaintCanvas].forEach((canvas) => {
+      canvas.width = source.naturalWidth;
+      canvas.height = source.naturalHeight;
+    });
+    maskSourceCanvas.getContext("2d").drawImage(source, 0, 0);
+    resetMaskEditor();
+    if (maskUrl) loadExistingMask(maskUrl, maskFilename);
+  };
+  source.src = `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
+}
+
+function loadExistingMask(maskUrl, maskFilename) {
+  const image = new Image();
+  image.onload = () => {
+    const context = maskPaintCanvas.getContext("2d");
+    const buffer = document.createElement("canvas");
+    buffer.width = maskPaintCanvas.width;
+    buffer.height = maskPaintCanvas.height;
+    const bufferContext = buffer.getContext("2d");
+    bufferContext.drawImage(image, 0, 0, buffer.width, buffer.height);
+    const pixels = bufferContext.getImageData(0, 0, buffer.width, buffer.height);
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      const maskValue = pixels.data[index];
+      pixels.data[index] = 226;
+      pixels.data[index + 1] = 109;
+      pixels.data[index + 2] = 90;
+      pixels.data[index + 3] = Math.round(maskValue * 0.48);
+    }
+    context.putImageData(pixels, 0, 0);
+    maskImageName.value = maskFilename;
+    maskDirty = true;
+    $("#maskState").textContent = "已载入";
+  };
+  image.src = `${maskUrl}?t=${Date.now()}`;
+}
+
+function maskPoint(event) {
+  const rect = maskPaintCanvas.getBoundingClientRect();
+  return {
+    x: (event.clientX - rect.left) * maskPaintCanvas.width / rect.width,
+    y: (event.clientY - rect.top) * maskPaintCanvas.height / rect.height,
+  };
+}
+
+function drawMask(from, to) {
+  const context = maskPaintCanvas.getContext("2d");
+  context.save();
+  context.globalCompositeOperation = maskTool === "eraser" ? "destination-out" : "source-over";
+  context.strokeStyle = "rgba(226,109,90,.48)";
+  context.lineWidth = Number($("#maskBrushSize").value) * maskPaintCanvas.width / Math.max(maskPaintCanvas.clientWidth, 1);
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.beginPath();
+  context.moveTo(from.x, from.y);
+  context.lineTo(to.x, to.y);
+  context.stroke();
+  context.restore();
+  maskDirty = true;
+  maskImageName.value = "";
+  $("#maskState").textContent = "待上传";
+}
+
+function setMaskTool(tool) {
+  maskTool = tool;
+  ["maskBrush", "maskEraser"].forEach((id) => {
+    const active = id === (tool === "brush" ? "maskBrush" : "maskEraser");
+    $(`#${id}`).classList.toggle("active", active);
+    $(`#${id}`).setAttribute("aria-pressed", String(active));
+  });
+}
+
+async function uploadMask() {
+  if (!maskDirty || maskImageName.value) return;
+  const output = document.createElement("canvas");
+  output.width = maskPaintCanvas.width;
+  output.height = maskPaintCanvas.height;
+  const outputContext = output.getContext("2d");
+  const sourcePixels = maskPaintCanvas.getContext("2d").getImageData(0, 0, output.width, output.height);
+  const pixels = outputContext.createImageData(output.width, output.height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const value = sourcePixels.data[index + 3] ? 255 : 0;
+    pixels.data[index] = value;
+    pixels.data[index + 1] = value;
+    pixels.data[index + 2] = value;
+    pixels.data[index + 3] = 255;
+  }
+  outputContext.putImageData(pixels, 0, 0);
+  const blob = await new Promise((resolve) => output.toBlob(resolve, "image/png"));
+  const formData = new FormData();
+  formData.append("file", blob, "mask.png");
+  const uploaded = await api("/api/images/upload", { method: "POST", body: formData });
+  maskImageName.value = uploaded.filename;
+  $("#maskState").textContent = "已上传";
 }
 
 function setGenerating(active) {
@@ -165,12 +283,17 @@ async function waitForTask(taskId) {
 async function generate(event) {
   event.preventDefault();
   if (!form.reportValidity()) return;
-  const parameters = collectParameters();
+  let parameters = collectParameters();
   if (!parameters.model) return notify("请先刷新并选择一个 SDXL 模型。", true);
   if (parameters.mode === "img2img" && !parameters.init_image) return notify("请先上传图生图参考图。", true);
   setGenerating(true);
   updateProgress({ progress: 0, status: "queued", message: "任务已进入队列" });
   try {
+    if (parameters.mode === "img2img" && maskDirty) {
+      updateProgress({ progress: 0, status: "queued", message: "正在上传局部重绘蒙版" });
+      await uploadMask();
+      parameters = collectParameters();
+    }
     const accepted = await api("/api/generate", { method: "POST", body: JSON.stringify(parameters) });
     const result = await waitForTask(accepted.task_id);
     previewGrid.replaceChildren(...result.images.map((item) => {
@@ -223,7 +346,9 @@ function historyCard(item) {
   prompt.textContent = item.prompt || "（无提示词）";
   const meta = document.createElement("div");
   meta.className = "history-meta";
-  const modeLabel = item.mode === "img2img" ? `图生图 ${item.strength}` : "文生图";
+  const modeLabel = item.mask_image
+    ? `局部重绘 ${item.strength}`
+    : item.mode === "img2img" ? `图生图 ${item.strength}` : "文生图";
   meta.textContent = `${modeLabel} · ${item.width}×${item.height} · ${item.sampler} · CLIP ${item.clip_skip ?? 2} · ${item.steps} steps · seed ${item.seed}`;
   info.append(prompt, meta);
   article.append(image, apply, remove, info);
@@ -263,7 +388,12 @@ function applyParameters(item) {
   $("#batchSize").value = item.batch_size ?? 1;
   $("#strength").value = item.strength ?? 0.65;
   $("#strengthValue").value = Number(item.strength ?? 0.65).toFixed(2);
-  showInitImage(item.init_image ?? "", item.init_image_url ?? "");
+  showInitImage(
+    item.init_image ?? "",
+    item.init_image_url ?? "",
+    item.mask_image ?? "",
+    item.mask_image_url ?? "",
+  );
   updateModelState();
   updateStageMeta();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -278,6 +408,25 @@ $("#loraScale").addEventListener("input", (event) => { $("#loraScaleValue").valu
 document.querySelectorAll('input[name="mode"]').forEach((input) => input.addEventListener("change", () => setMode(input.value)));
 initImageInput.addEventListener("change", uploadInitImage);
 $("#removeInitImage").addEventListener("click", () => { initImageInput.value = ""; showInitImage("", ""); });
+$("#maskBrush").addEventListener("click", () => setMaskTool("brush"));
+$("#maskEraser").addEventListener("click", () => setMaskTool("eraser"));
+$("#clearMask").addEventListener("click", resetMaskEditor);
+$("#maskBrushSize").addEventListener("input", (event) => { $("#maskBrushSizeValue").value = event.target.value; });
+maskPaintCanvas.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  maskPaintCanvas.setPointerCapture(event.pointerId);
+  maskDrawing = true;
+  lastMaskPoint = maskPoint(event);
+  drawMask(lastMaskPoint, lastMaskPoint);
+});
+maskPaintCanvas.addEventListener("pointermove", (event) => {
+  if (!maskDrawing) return;
+  const point = maskPoint(event);
+  drawMask(lastMaskPoint, point);
+  lastMaskPoint = point;
+});
+maskPaintCanvas.addEventListener("pointerup", () => { maskDrawing = false; lastMaskPoint = null; });
+maskPaintCanvas.addEventListener("pointercancel", () => { maskDrawing = false; lastMaskPoint = null; });
 $("#strength").addEventListener("input", (event) => { $("#strengthValue").value = Number(event.target.value).toFixed(2); });
 $("#width").addEventListener("input", updateStageMeta);
 $("#height").addEventListener("input", updateStageMeta);

@@ -94,3 +94,19 @@
 | `tests/test_prompt_encoding.py` | 新建 | 覆盖短提示原生路径、长提示分块平均和 Clip Skip 透传 |
 | `tests/test_api.py` | 修改 | 覆盖默认值、历史持久化和范围校验 |
 | `README.md` | 修改 | 说明 Clip Skip 与长提示词处理规则 |
+
+## 2026-08-21 图生图局部重绘蒙版
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/schemas.py` | 修改 | 增加可选蒙版文件参数及模式校验 |
+| `app/storage.py` | 修改 | 历史记录增加蒙版图片 URL |
+| `app/engine.py` | 修改 | 有蒙版时由 SDXL 组件派生 Inpaint 管线并传入 mask_image |
+| `app/main.py` | 修改 | 加载、灰度化和缩放蒙版并接入后台生成任务 |
+| `static/index.html` | 修改 | 增加蒙版画布、画笔、橡皮、清空和笔刷大小控件 |
+| `static/styles.css` | 修改 | 增加局部重绘编辑器和双层画布样式 |
+| `static/app.js` | 修改 | 支持鼠标/触控绘制、蒙版导出上传、历史恢复和局部重绘请求 |
+| `tests/test_api.py` | 修改 | 覆盖蒙版上传、灰度缩放、历史记录和模式限制 |
+| `README.md` | 修改 | 增加局部重绘操作与存储说明 |
+| `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
+| `FILES.txt` | 修改 | 重新生成项目目录清单 |

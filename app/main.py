@@ -103,6 +103,7 @@ def run_generation(
     model_path: Path,
     lora_path: Path | None,
     init_image_path: Path | None,
+    mask_image_path: Path | None,
 ) -> None:
     generated: list[dict] = []
 
@@ -137,6 +138,12 @@ def run_generation(
                 init_image = source.convert("RGB").resize(
                     (request.width, request.height), Image.Resampling.LANCZOS
                 )
+        mask_image = None
+        if mask_image_path is not None:
+            with Image.open(mask_image_path) as source:
+                mask_image = source.convert("L").resize(
+                    (request.width, request.height), Image.Resampling.NEAREST
+                )
         engine.generate(
             request,
             model_path,
@@ -144,6 +151,7 @@ def run_generation(
             save_image,
             update_progress,
             init_image=init_image,
+            mask_image=mask_image,
         )
         tasks.update(
             task_id,
@@ -189,6 +197,9 @@ def generate(request: GenerateRequest) -> dict:
         init_image_path = (
             storage.input_image_path(request.init_image) if request.mode == "img2img" else None
         )
+        mask_image_path = (
+            storage.input_image_path(request.mask_image) if request.mask_image else None
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -200,7 +211,7 @@ def generate(request: GenerateRequest) -> dict:
     task_id = tasks.create(total_steps)
     threading.Thread(
         target=run_generation,
-        args=(task_id, request, model_path, lora_path, init_image_path),
+        args=(task_id, request, model_path, lora_path, init_image_path, mask_image_path),
         daemon=True,
     ).start()
     return {"task_id": task_id}

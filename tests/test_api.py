@@ -14,11 +14,20 @@ class FakeEngine:
     device = DeviceInfo(kind="cpu", label="CPU test", cuda_available=False, dtype="float32")
 
     last_init_image = None
+    last_mask_image = None
 
     def generate(
-        self, request, model_path, lora_path, on_image, on_progress=None, init_image=None
+        self,
+        request,
+        model_path,
+        lora_path,
+        on_image,
+        on_progress=None,
+        init_image=None,
+        mask_image=None,
     ):
         self.last_init_image = init_image
+        self.last_mask_image = mask_image
         if on_progress is not None:
             on_progress(request.steps, request.steps * request.batch_size, 1)
         on_image(Image.new("RGB", (32, 32), "#e6a23c"), 42, 0)
@@ -72,6 +81,19 @@ def test_reject_bad_dimensions(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(main, "storage", Storage(tmp_path))
     response = TestClient(main.app).post(
         "/api/generate", json={"model": "x.safetensors", "prompt": "x", "width": 831}
+    )
+    assert response.status_code == 422
+
+
+def test_txt2img_rejects_mask(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(main, "storage", Storage(tmp_path))
+    response = TestClient(main.app).post(
+        "/api/generate",
+        json={
+            "model": "x.safetensors",
+            "prompt": "x",
+            "mask_image": "mask.png",
+        },
     )
     assert response.status_code == 422
 
@@ -131,6 +153,51 @@ def test_upload_and_generate_img2img(tmp_path: Path, monkeypatch) -> None:
     assert history["mode"] == "img2img"
     assert history["strength"] == 0.6
     assert history["init_image_url"] == f"/inputs/{filename}"
+
+
+def test_generate_img2img_with_mask(tmp_path: Path, monkeypatch) -> None:
+    storage = Storage(tmp_path)
+    (storage.models_dir / "sdxl.safetensors").touch()
+    fake_engine = FakeEngine()
+    monkeypatch.setattr(main, "storage", storage)
+    monkeypatch.setattr(main, "engine", fake_engine)
+    client = TestClient(main.app)
+
+    source = BytesIO()
+    Image.new("RGB", (48, 64), "#335577").save(source, format="PNG")
+    mask = BytesIO()
+    Image.new("L", (48, 64), 255).save(mask, format="PNG")
+    init_name = client.post(
+        "/api/images/upload", files={"file": ("source.png", source.getvalue(), "image/png")}
+    ).json()["filename"]
+    mask_name = client.post(
+        "/api/images/upload", files={"file": ("mask.png", mask.getvalue(), "image/png")}
+    ).json()["filename"]
+
+    response = client.post(
+        "/api/generate",
+        json={
+            "mode": "img2img",
+            "model": "sdxl.safetensors",
+            "prompt": "replace the masked area",
+            "init_image": init_name,
+            "mask_image": mask_name,
+        },
+    )
+    assert response.status_code == 202
+    task_id = response.json()["task_id"]
+    for _ in range(50):
+        task = client.get(f"/api/tasks/{task_id}").json()
+        if task["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.01)
+    assert task["status"] == "completed"
+    assert fake_engine.last_mask_image is not None
+    assert fake_engine.last_mask_image.mode == "L"
+    assert fake_engine.last_mask_image.size == (832, 1216)
+    history = storage.list_history()[0]
+    assert history["mask_image"] == mask_name
+    assert history["mask_image_url"] == f"/inputs/{mask_name}"
 
 
 def test_img2img_requires_image(tmp_path: Path, monkeypatch) -> None:

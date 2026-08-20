@@ -122,10 +122,16 @@ class GenerationEngine:
         on_image: Callable[[Any, int, int], None],
         on_progress: Callable[[int, int, int], None] | None = None,
         init_image: Any | None = None,
+        mask_image: Any | None = None,
     ) -> list[dict[str, int]]:
         with self._lock:
             pipeline = self._load_pipeline(model_path)
-            if init_image is not None:
+            if mask_image is not None:
+                from diffusers import StableDiffusionXLInpaintPipeline
+
+                pipeline = StableDiffusionXLInpaintPipeline(**pipeline.components)
+                pipeline.set_progress_bar_config(disable=True)
+            elif init_image is not None:
                 from diffusers import StableDiffusionXLImg2ImgPipeline
 
                 pipeline = StableDiffusionXLImg2ImgPipeline(**pipeline.components)
@@ -156,6 +162,8 @@ class GenerationEngine:
                 pipeline_kwargs: dict[str, Any] = {}
                 if init_image is not None:
                     pipeline_kwargs.update(image=init_image, strength=request.strength)
+                if mask_image is not None:
+                    pipeline_kwargs["mask_image"] = mask_image
                 prompt_kwargs = build_sdxl_prompt_kwargs(
                     pipeline, request.prompt, request.negative_prompt, request.clip_skip
                 )

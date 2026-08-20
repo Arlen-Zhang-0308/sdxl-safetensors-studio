@@ -19,9 +19,10 @@ class GenerateRequest(BaseModel):
     seed: int = Field(default=-1, ge=-1, le=2**63 - 1)
     batch_size: int = Field(default=1, ge=1, le=4)
     init_image: str | None = None
+    mask_image: str | None = None
     strength: float = Field(default=0.65, gt=0.0, le=1.0)
 
-    @field_validator("model", "lora", "init_image")
+    @field_validator("model", "lora", "init_image", "mask_image")
     @classmethod
     def reject_paths(cls, value: str | None) -> str | None:
         if value is not None and ("/" in value or "\\" in value or value in {".", ".."}):
@@ -32,4 +33,6 @@ class GenerateRequest(BaseModel):
     def require_init_image(self) -> "GenerateRequest":
         if self.mode == "img2img" and not self.init_image:
             raise ValueError("图生图模式必须上传参考图")
+        if self.mask_image and self.mode != "img2img":
+            raise ValueError("蒙版只能用于图生图模式")
         return self
