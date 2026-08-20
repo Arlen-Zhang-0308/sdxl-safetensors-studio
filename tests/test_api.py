@@ -40,6 +40,11 @@ class FakeEngine:
         return [{"seed": 42, "index": 0}]
 
 
+class FailingEngine(FakeEngine):
+    def generate(self, *args, **kwargs):
+        raise TypeError("missing local adapter argument")
+
+
 def test_status_and_refresh(tmp_path: Path, monkeypatch) -> None:
     storage = Storage(tmp_path)
     (storage.models_dir / "sdxl.safetensors").touch()
@@ -82,6 +87,27 @@ def test_generate_saves_complete_history(tmp_path: Path, monkeypatch) -> None:
     assert history[0]["seed"] == 42
     assert history[0]["width"] == 832
     assert history[0]["clip_skip"] == 2
+
+
+def test_generation_returns_unexpected_error_details(tmp_path: Path, monkeypatch) -> None:
+    storage = Storage(tmp_path)
+    (storage.models_dir / "sdxl.safetensors").touch()
+    monkeypatch.setattr(main, "storage", storage)
+    monkeypatch.setattr(main, "engine", FailingEngine())
+    client = TestClient(main.app)
+
+    response = client.post(
+        "/api/generate",
+        json={"model": "sdxl.safetensors", "prompt": "test"},
+    )
+    task_id = response.json()["task_id"]
+    for _ in range(50):
+        task = client.get(f"/api/tasks/{task_id}").json()
+        if task["status"] == "failed":
+            break
+        time.sleep(0.01)
+
+    assert task["error"] == "TypeError: missing local adapter argument"
 
 
 def test_reject_bad_dimensions(tmp_path: Path, monkeypatch) -> None:

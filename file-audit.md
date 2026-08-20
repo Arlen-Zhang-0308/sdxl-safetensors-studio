@@ -111,6 +111,18 @@
 | `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
 | `FILES.txt` | 修改 | 重新生成项目目录清单 |
 
+## 2026-08-21 IP-Adapter 本地加载修复
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/engine.py` | 修改 | 为 Diffusers 0.35 本地 IP-Adapter 加载显式传入空 subfolder，修复缺少必选参数导致的 TypeError |
+| `app/main.py` | 修改 | 非 RuntimeError 失败时返回真实异常类型和消息，不再误报为 SDXL checkpoint 不兼容 |
+| `tests/test_engine.py` | 新建 | 锁定本地适配器路径、subfolder、编码器目录和离线参数 |
+| `tests/test_api.py` | 修改 | 覆盖后台任务真实异常消息透传 |
+| `README.md` | 修改 | 增加本地加载兼容修复和错误诊断说明 |
+| `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
+| `FILES.txt` | 修改 | 重新生成项目目录清单 |
+
 ## 2026-08-21 IP-Adapter 与扩展采样器
 
 | 文件 | 类型 | 变更 |

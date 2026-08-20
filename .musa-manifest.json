@@ -1,6 +1,6 @@
 {
   "project": "sdxl-safetensors-studio",
-  "generated_at": "2026-08-21T00:58:33+08:00",
+  "generated_at": "2026-08-21T01:53:50+08:00",
   "files": [
     ".gitignore",
     ".musa-manifest.json",
@@ -28,6 +28,7 @@
     "static/index.html",
     "static/styles.css",
     "tests/test_api.py",
+    "tests/test_engine.py",
     "tests/test_prompt_encoding.py",
     "tests/test_storage.py",
     "tests/test_tasks.py"

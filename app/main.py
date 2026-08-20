@@ -206,14 +206,11 @@ def run_generation(
                 "或检查 README 的模型兼容性说明。"
             )
         tasks.update(task_id, status="failed", error=message, message="生成失败")
-    except Exception:
+    except Exception as exc:
         tasks.update(
             task_id,
             status="failed",
-            error=(
-                "生成失败。请确认所选文件是完整 SDXL checkpoint，LoRA 与 SDXL 兼容，"
-                "并查看启动窗口中的详细错误。"
-            ),
+            error=f"{type(exc).__name__}: {exc}",
             message="生成失败",
         )
 

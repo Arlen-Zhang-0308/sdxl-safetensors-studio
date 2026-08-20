@@ -168,6 +168,7 @@ class GenerationEngine:
         if adapter_path is not None and self._ip_adapter_path != adapter_path:
             pipeline.load_ip_adapter(
                 str(adapter_path.parent),
+                subfolder="",
                 weight_name=adapter_path.name,
                 image_encoder_folder="image_encoder",
                 local_files_only=True,
