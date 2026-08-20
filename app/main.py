@@ -43,6 +43,7 @@ def status() -> dict:
             "cfg": 4.0,
             "steps": 30,
             "sampler": "Euler a",
+            "clip_skip": 2,
             "seed": -1,
             "batch_size": 1,
             "lora_scale": 1.0,

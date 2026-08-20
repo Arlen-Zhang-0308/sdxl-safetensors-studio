@@ -80,3 +80,17 @@
 | `static/styles.css` | 修改 | 增加右上角危险操作按钮及禁用状态 |
 | `tests/test_storage.py` | 修改 | 覆盖安全删除、参考图保留与非法 ID |
 | `tests/test_api.py` | 修改 | 覆盖删除成功、重复删除和非法 ID 响应 |
+
+## 2026-08-20 Clip Skip 与长提示词分块编码
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/prompt_encoding.py` | 新建 | 实现 SDXL 双 tokenizer 长提示词分块编码及 embeddings 平均 |
+| `app/schemas.py` | 修改 | 增加 0–12 的 Clip Skip 参数，默认 2 |
+| `app/engine.py` | 修改 | 文生图和图生图统一接入 Clip Skip 与分块编码参数 |
+| `app/main.py` | 修改 | 状态默认值增加 Clip Skip=2 |
+| `static/index.html` | 修改 | 生成参数区增加 Clip Skip 输入 |
+| `static/app.js` | 修改 | 提交、历史展示与参数回填支持 Clip Skip |
+| `tests/test_prompt_encoding.py` | 新建 | 覆盖短提示原生路径、长提示分块平均和 Clip Skip 透传 |
+| `tests/test_api.py` | 修改 | 覆盖默认值、历史持久化和范围校验 |
+| `README.md` | 修改 | 说明 Clip Skip 与长提示词处理规则 |

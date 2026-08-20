@@ -32,6 +32,7 @@ def test_status_and_refresh(tmp_path: Path, monkeypatch) -> None:
     client = TestClient(main.app)
 
     assert client.get("/api/status").json()["defaults"]["width"] == 832
+    assert client.get("/api/status").json()["defaults"]["clip_skip"] == 2
     assert client.post("/api/weights/refresh").json()["models"] == ["sdxl.safetensors"]
 
 
@@ -64,12 +65,21 @@ def test_generate_saves_complete_history(tmp_path: Path, monkeypatch) -> None:
     assert history[0]["negative_prompt"] == "blur"
     assert history[0]["seed"] == 42
     assert history[0]["width"] == 832
+    assert history[0]["clip_skip"] == 2
 
 
 def test_reject_bad_dimensions(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(main, "storage", Storage(tmp_path))
     response = TestClient(main.app).post(
         "/api/generate", json={"model": "x.safetensors", "prompt": "x", "width": 831}
+    )
+    assert response.status_code == 422
+
+
+def test_reject_bad_clip_skip(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(main, "storage", Storage(tmp_path))
+    response = TestClient(main.app).post(
+        "/api/generate", json={"model": "x.safetensors", "prompt": "x", "clip_skip": 13}
     )
     assert response.status_code == 422
 

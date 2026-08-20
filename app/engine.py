@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from app.schemas import GenerateRequest
+from app.prompt_encoding import build_sdxl_prompt_kwargs, suppress_tokenizer_length_log
 
 
 @dataclass(frozen=True)
@@ -155,19 +156,22 @@ class GenerationEngine:
                 pipeline_kwargs: dict[str, Any] = {}
                 if init_image is not None:
                     pipeline_kwargs.update(image=init_image, strength=request.strength)
+                prompt_kwargs = build_sdxl_prompt_kwargs(
+                    pipeline, request.prompt, request.negative_prompt, request.clip_skip
+                )
                 with torch.inference_mode():
-                    image = pipeline(
-                        prompt=request.prompt,
-                        negative_prompt=request.negative_prompt or None,
-                        width=request.width,
-                        height=request.height,
-                        guidance_scale=request.cfg,
-                        num_inference_steps=request.steps,
-                        generator=generator,
-                        callback_on_step_end=step_callback,
-                        callback_on_step_end_tensor_inputs=["latents"],
-                        **pipeline_kwargs,
-                    ).images[0]
+                    with suppress_tokenizer_length_log():
+                        image = pipeline(
+                            width=request.width,
+                            height=request.height,
+                            guidance_scale=request.cfg,
+                            num_inference_steps=request.steps,
+                            generator=generator,
+                            callback_on_step_end=step_callback,
+                            callback_on_step_end_tensor_inputs=["latents"],
+                            **prompt_kwargs,
+                            **pipeline_kwargs,
+                        ).images[0]
                 on_image(image, seed, index)
                 seeds.append({"seed": seed, "index": index})
             return seeds

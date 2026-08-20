@@ -1,6 +1,6 @@
 {
   "project": "sdxl-safetensors-studio",
-  "generated_at": "2026-08-20T21:33:14+08:00",
+  "generated_at": "2026-08-20T22:02:03+08:00",
   "files": [
     ".gitignore",
     ".musa-manifest.json",
@@ -10,6 +10,7 @@
     "app/__init__.py",
     "app/engine.py",
     "app/main.py",
+    "app/prompt_encoding.py",
     "app/schemas.py",
     "app/storage.py",
     "app/tasks.py",
@@ -26,6 +27,7 @@
     "static/index.html",
     "static/styles.css",
     "tests/test_api.py",
+    "tests/test_prompt_encoding.py",
     "tests/test_storage.py",
     "tests/test_tasks.py"
   ]

@@ -96,6 +96,7 @@ function collectParameters() {
     cfg: Number($("#cfg").value),
     steps: Number($("#steps").value),
     sampler: $("#sampler").value,
+    clip_skip: Number($("#clipSkip").value),
     seed: Number($("#seed").value),
     batch_size: Number($("#batchSize").value),
     init_image: mode === "img2img" ? initImageName.value || null : null,
@@ -223,7 +224,7 @@ function historyCard(item) {
   const meta = document.createElement("div");
   meta.className = "history-meta";
   const modeLabel = item.mode === "img2img" ? `图生图 ${item.strength}` : "文生图";
-  meta.textContent = `${modeLabel} · ${item.width}×${item.height} · ${item.sampler} · ${item.steps} steps · seed ${item.seed}`;
+  meta.textContent = `${modeLabel} · ${item.width}×${item.height} · ${item.sampler} · CLIP ${item.clip_skip ?? 2} · ${item.steps} steps · seed ${item.seed}`;
   info.append(prompt, meta);
   article.append(image, apply, remove, info);
   return article;
@@ -257,6 +258,7 @@ function applyParameters(item) {
   $("#cfg").value = item.cfg ?? 4;
   $("#steps").value = item.steps ?? 30;
   ensureOption($("#sampler"), item.sampler ?? "Euler a", "Euler a");
+  $("#clipSkip").value = item.clip_skip ?? 2;
   $("#seed").value = item.seed ?? -1;
   $("#batchSize").value = item.batch_size ?? 1;
   $("#strength").value = item.strength ?? 0.65;

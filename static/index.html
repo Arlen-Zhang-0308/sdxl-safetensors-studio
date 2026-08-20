@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Windows 本地 SDXL Safetensors 生图工作台">
   <title>SDXL Safetensors Studio</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260820210728">
+  <link rel="stylesheet" href="/static/styles.css?v=20260820214208">
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到工作区</a>
@@ -60,7 +60,8 @@
           <div class="field-grid two"><div><label for="width">宽</label><input id="width" name="width" type="number" min="256" max="2048" step="8" value="832"></div><div><label for="height">高</label><input id="height" name="height" type="number" min="256" max="2048" step="8" value="1216"></div></div>
           <div class="field-grid two"><div><label for="cfg">CFG</label><input id="cfg" name="cfg" type="number" min="0" max="30" step="0.1" value="4"></div><div><label for="steps">Steps</label><input id="steps" name="steps" type="number" min="1" max="150" value="30"></div></div>
           <label for="sampler">Sampler</label><select id="sampler" name="sampler"><option>Euler a</option></select>
-          <div class="field-grid two"><div><label for="seed">Seed（-1 随机）</label><input id="seed" name="seed" type="number" min="-1" value="-1"></div><div><label for="batchSize">批量数</label><input id="batchSize" name="batch_size" type="number" min="1" max="4" value="1"></div></div>
+          <div class="field-grid two"><div><label for="clipSkip">Clip Skip</label><input id="clipSkip" name="clip_skip" type="number" min="0" max="12" value="2"></div><div><label for="batchSize">批量数</label><input id="batchSize" name="batch_size" type="number" min="1" max="4" value="1"></div></div>
+          <label for="seed">Seed（-1 随机）</label><input id="seed" name="seed" type="number" min="-1" value="-1">
         </section>
 
         <button id="generateButton" class="primary-button" type="submit"><span class="button-label">开始生成</span><span class="button-meta">CTRL + ENTER</span></button>
@@ -90,6 +91,6 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=20260820210728"></script>
+  <script src="/static/app.js?v=20260820214208"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 ./app/__init__.py
 ./app/engine.py
 ./app/main.py
+./app/prompt_encoding.py
 ./app/schemas.py
 ./app/storage.py
 ./app/tasks.py
@@ -22,5 +23,6 @@
 ./static/index.html
 ./static/styles.css
 ./tests/test_api.py
+./tests/test_prompt_encoding.py
 ./tests/test_storage.py
 ./tests/test_tasks.py

@@ -15,6 +15,7 @@ class GenerateRequest(BaseModel):
     cfg: float = Field(default=4.0, ge=0.0, le=30.0)
     steps: int = Field(default=30, ge=1, le=150)
     sampler: str = "Euler a"
+    clip_skip: int = Field(default=2, ge=0, le=12)
     seed: int = Field(default=-1, ge=-1, le=2**63 - 1)
     batch_size: int = Field(default=1, ge=1, le=4)
     init_image: str | None = None

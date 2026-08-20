@@ -7,6 +7,8 @@
 - 扫描 `models/` 中的 SDXL 单文件 `.safetensors`，刷新后加入下拉列表。
 - 扫描同级 `loras/` 目录，支持选择 LoRA 和调整权重。
 - 默认参数：832×1216、CFG 4、Steps 30、Euler a、Seed -1。
+- 默认 Clip Skip 为 2；支持 0–12，0 表示使用 Diffusers 默认文本编码层。
+- 超过 SDXL CLIP 上限的提示词会自动按 token 分块编码，并平均 sequence/pooled embeddings，避免直接截断。
 - 支持 Euler a、Euler、DPM++ 2M Karras、UniPC。
 - 页面底部持久化生成历史；每张图左上角可一键回填全部参数。
 - 支持 SDXL 图生图：上传 PNG/JPEG/WebP 参考图、预览并调整重绘强度。
