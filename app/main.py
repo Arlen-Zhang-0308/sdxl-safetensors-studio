@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import threading
 import uuid
+from io import BytesIO
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from PIL import Image, UnidentifiedImageError
 
 from app.engine import GenerationEngine
 from app.schemas import GenerateRequest
@@ -20,6 +22,7 @@ tasks = TaskStore()
 app = FastAPI(title="SDXL Safetensors Studio", version="1.0.0")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.mount("/history", StaticFiles(directory=storage.history_dir), name="history")
+app.mount("/inputs", StaticFiles(directory=storage.inputs_dir), name="inputs")
 
 SAMPLERS = ["Euler a", "Euler", "DPM++ 2M Karras", "UniPC"]
 
@@ -57,6 +60,34 @@ def history() -> list[dict]:
     return storage.list_history()
 
 
+@app.delete("/api/history/{history_id}", status_code=204)
+def delete_history(history_id: str) -> None:
+    try:
+        deleted = storage.delete_history(history_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not deleted:
+        raise HTTPException(status_code=404, detail="历史记录不存在")
+
+
+@app.post("/api/images/upload")
+async def upload_image(file: UploadFile = File(...)) -> dict:
+    if file.content_type not in {"image/png", "image/jpeg", "image/webp"}:
+        raise HTTPException(status_code=415, detail="仅支持 PNG、JPEG 或 WebP 图片")
+    content = await file.read(20 * 1024 * 1024 + 1)
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="参考图不能超过 20MB")
+    try:
+        image = Image.open(BytesIO(content))
+        image.load()
+        image = image.convert("RGB")
+    except (UnidentifiedImageError, OSError) as exc:
+        raise HTTPException(status_code=422, detail="无法识别该图片文件") from exc
+    filename = f"{uuid.uuid4().hex}.png"
+    image.save(storage.inputs_dir / filename, format="PNG", optimize=True)
+    return {"filename": filename, "image_url": f"/inputs/{filename}"}
+
+
 @app.get("/api/tasks/{task_id}")
 def task_status(task_id: str) -> dict:
     task = tasks.get(task_id)
@@ -66,7 +97,11 @@ def task_status(task_id: str) -> dict:
 
 
 def run_generation(
-    task_id: str, request: GenerateRequest, model_path: Path, lora_path: Path | None
+    task_id: str,
+    request: GenerateRequest,
+    model_path: Path,
+    lora_path: Path | None,
+    init_image_path: Path | None,
 ) -> None:
     generated: list[dict] = []
 
@@ -95,12 +130,29 @@ def run_generation(
 
     tasks.update(task_id, status="running", message="正在加载模型并准备推理")
     try:
-        engine.generate(request, model_path, lora_path, save_image, update_progress)
+        init_image = None
+        if init_image_path is not None:
+            with Image.open(init_image_path) as source:
+                init_image = source.convert("RGB").resize(
+                    (request.width, request.height), Image.Resampling.LANCZOS
+                )
+        engine.generate(
+            request,
+            model_path,
+            lora_path,
+            save_image,
+            update_progress,
+            init_image=init_image,
+        )
         tasks.update(
             task_id,
             status="completed",
             progress=100,
-            current_step=request.steps * request.batch_size,
+            current_step=(
+                max(1, round(request.steps * request.strength)) * request.batch_size
+                if request.mode == "img2img"
+                else request.steps * request.batch_size
+            ),
             images=generated,
             message="生成完成",
         )
@@ -133,14 +185,21 @@ def generate(request: GenerateRequest) -> dict:
     try:
         model_path = storage.model_path(request.model)
         lora_path = storage.lora_path(request.lora) if request.lora else None
+        init_image_path = (
+            storage.input_image_path(request.init_image) if request.mode == "img2img" else None
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    total_steps = request.steps * request.batch_size
+    total_steps = (
+        max(1, round(request.steps * request.strength)) * request.batch_size
+        if request.mode == "img2img"
+        else request.steps * request.batch_size
+    )
     task_id = tasks.create(total_steps)
     threading.Thread(
         target=run_generation,
-        args=(task_id, request, model_path, lora_path),
+        args=(task_id, request, model_path, lora_path, init_image_path),
         daemon=True,
     ).start()
     return {"task_id": task_id}

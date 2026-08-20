@@ -1,7 +1,10 @@
-from pydantic import BaseModel, Field, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class GenerateRequest(BaseModel):
+    mode: Literal["txt2img", "img2img"] = "txt2img"
     model: str
     lora: str | None = None
     lora_scale: float = Field(default=1.0, ge=-4.0, le=4.0)
@@ -14,10 +17,18 @@ class GenerateRequest(BaseModel):
     sampler: str = "Euler a"
     seed: int = Field(default=-1, ge=-1, le=2**63 - 1)
     batch_size: int = Field(default=1, ge=1, le=4)
+    init_image: str | None = None
+    strength: float = Field(default=0.65, gt=0.0, le=1.0)
 
-    @field_validator("model", "lora")
+    @field_validator("model", "lora", "init_image")
     @classmethod
     def reject_paths(cls, value: str | None) -> str | None:
         if value is not None and ("/" in value or "\\" in value or value in {".", ".."}):
             raise ValueError("只允许选择已扫描到的文件名")
         return value
+
+    @model_validator(mode="after")
+    def require_init_image(self) -> "GenerateRequest":
+        if self.mode == "img2img" and not self.init_image:
+            raise ValueError("图生图模式必须上传参考图")
+        return self

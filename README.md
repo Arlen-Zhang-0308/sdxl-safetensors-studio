@@ -9,8 +9,10 @@
 - 默认参数：832×1216、CFG 4、Steps 30、Euler a、Seed -1。
 - 支持 Euler a、Euler、DPM++ 2M Karras、UniPC。
 - 页面底部持久化生成历史；每张图左上角可一键回填全部参数。
+- 支持 SDXL 图生图：上传 PNG/JPEG/WebP 参考图、预览并调整重绘强度。
 - 启动时检测 CUDA，优先 NVIDIA CUDA；不可用时自动使用 CPU。
 - 所有图片和参数只保存在本机 `data/history/`。
+- 图生图参考图会转换为 PNG 并保存在本机 `data/inputs/`，单张最大 20MB。
 
 ## Windows 安装
 
@@ -36,6 +38,13 @@
 5. 双击 `start_windows.bat`。浏览器会打开 <http://127.0.0.1:7860>。
 6. 点击模型区域的刷新按钮，选择模型后开始生成。
 
+### 图生图
+
+1. 在“生成模式”中选择“图生图”。
+2. 上传 PNG、JPEG 或 WebP 参考图。
+3. 调整“重绘强度”：数值越低越接近参考图，越高改动越大。
+4. 填写提示词并生成。历史记录的“应用参数”会恢复模式、参考图和强度。
+
 ## 目录
 
 ```text
@@ -45,6 +54,7 @@ sdxl-safetensors-studio/
 ├─ models/              # SDXL safetensors
 ├─ loras/               # LoRA safetensors
 ├─ data/history/        # PNG 与完整参数 JSON
+├─ data/inputs/         # 图生图参考图
 ├─ install_windows.bat
 └─ start_windows.bat
 ```

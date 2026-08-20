@@ -36,3 +36,22 @@ def test_history_newest_first(tmp_path: Path) -> None:
         metadata.write_text(text, encoding="utf-8")
 
     assert [item["id"] for item in storage.list_history()] == ["new", "old"]
+
+
+def test_delete_history_removes_image_and_metadata_only(tmp_path: Path) -> None:
+    storage = Storage(tmp_path)
+    history_id = "a" * 32
+    (storage.history_dir / f"{history_id}.png").touch()
+    storage.save_metadata(history_id, {"prompt": "delete me", "init_image": "source.png"})
+    (storage.inputs_dir / "source.png").touch()
+
+    assert storage.delete_history(history_id) is True
+    assert not (storage.history_dir / f"{history_id}.png").exists()
+    assert not (storage.history_dir / f"{history_id}.json").exists()
+    assert (storage.inputs_dir / "source.png").exists()
+    assert storage.delete_history(history_id) is False
+
+
+def test_delete_history_rejects_invalid_id(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        Storage(tmp_path).delete_history("../history")

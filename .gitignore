@@ -9,6 +9,8 @@ loras/*.safetensors
 loras/**/*.safetensors
 data/history/*.png
 data/history/*.json
+data/inputs/*.png
 !models/.gitkeep
 !loras/.gitkeep
 !data/history/.gitkeep
+!data/inputs/.gitkeep

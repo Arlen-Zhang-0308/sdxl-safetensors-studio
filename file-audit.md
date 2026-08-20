@@ -54,3 +54,29 @@
 | `static/app.js` | 修改 | 创建任务后轮询进度，完成后显示图片并刷新历史 |
 | `tests/test_api.py` | 修改 | 覆盖任务创建、状态查询、100% 完成和未知任务 |
 | `tests/test_tasks.py` | 新建 | 覆盖任务状态更新和快照隔离 |
+
+## 2026-08-20 图生图功能
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/schemas.py` | 修改 | 增加文生图/图生图模式、参考图与重绘强度校验 |
+| `app/storage.py` | 修改 | 增加参考图目录、安全路径解析及历史参考图 URL |
+| `app/engine.py` | 修改 | 从 SDXL 组件派生 Img2Img 管线，支持参考图与 strength |
+| `app/main.py` | 修改 | 增加图片上传 API、参考图缩放和图生图后台任务 |
+| `static/index.html` | 修改 | 增加模式切换、参考图预览、移除和重绘强度控件 |
+| `static/styles.css` | 修改 | 增加图生图模式及参考图控件样式 |
+| `static/app.js` | 修改 | 增加上传、校验、图生图请求和历史完整恢复 |
+| `tests/test_api.py` | 修改 | 覆盖上传、格式拒绝、图生图生成与历史数据 |
+| `data/inputs/.gitkeep` | 新建 | 保留本地参考图目录 |
+| `.gitignore` | 修改 | 排除用户上传的参考图文件 |
+
+## 2026-08-20 历史图片删除
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/storage.py` | 修改 | 增加历史 ID 校验及 PNG/JSON 成对删除，不删除参考图 |
+| `app/main.py` | 修改 | 增加单条历史记录 DELETE API |
+| `static/app.js` | 修改 | 每张历史卡片增加删除确认、请求和即时刷新 |
+| `static/styles.css` | 修改 | 增加右上角危险操作按钮及禁用状态 |
+| `tests/test_storage.py` | 修改 | 覆盖安全删除、参考图保留与非法 ID |
+| `tests/test_api.py` | 修改 | 覆盖删除成功、重复删除和非法 ID 响应 |

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 SUPPORTED_WEIGHT_SUFFIXES = {".safetensors"}
+HISTORY_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 
 
 class Storage:
@@ -14,7 +16,8 @@ class Storage:
         self.models_dir = self.root / "models"
         self.loras_dir = self.root / "loras"
         self.history_dir = self.root / "data" / "history"
-        for directory in (self.models_dir, self.loras_dir, self.history_dir):
+        self.inputs_dir = self.root / "data" / "inputs"
+        for directory in (self.models_dir, self.loras_dir, self.history_dir, self.inputs_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -33,6 +36,14 @@ class Storage:
     def lora_path(self, name: str) -> Path:
         return self._safe_weight(self.loras_dir, name)
 
+    def input_image_path(self, name: str) -> Path:
+        candidate = (self.inputs_dir / name).resolve()
+        if candidate.parent != self.inputs_dir.resolve() or candidate.suffix.lower() != ".png":
+            raise FileNotFoundError("非法参考图文件名")
+        if not candidate.is_file():
+            raise FileNotFoundError(f"参考图不存在：{name}")
+        return candidate
+
     @staticmethod
     def _safe_weight(directory: Path, name: str) -> Path:
         candidate = (directory / name).resolve()
@@ -48,6 +59,17 @@ class Storage:
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
+    def delete_history(self, history_id: str) -> bool:
+        if not HISTORY_ID_PATTERN.fullmatch(history_id):
+            raise ValueError("非法历史记录 ID")
+        image_path = self.history_dir / f"{history_id}.png"
+        metadata_path = self.history_dir / f"{history_id}.json"
+        if not image_path.is_file() and not metadata_path.is_file():
+            return False
+        image_path.unlink(missing_ok=True)
+        metadata_path.unlink(missing_ok=True)
+        return True
+
     def list_history(self) -> list[dict[str, Any]]:
         records: list[dict[str, Any]] = []
         for path in self.history_dir.glob("*.json"):
@@ -55,7 +77,15 @@ class Storage:
                 item = json.loads(path.read_text(encoding="utf-8"))
                 image_name = f"{path.stem}.png"
                 if (self.history_dir / image_name).is_file():
-                    records.append({**item, "id": path.stem, "image_url": f"/history/{image_name}"})
+                    init_image = item.get("init_image")
+                    records.append(
+                        {
+                            **item,
+                            "id": path.stem,
+                            "image_url": f"/history/{image_name}",
+                            "init_image_url": f"/inputs/{init_image}" if init_image else None,
+                        }
+                    )
             except (OSError, json.JSONDecodeError):
                 continue
         return sorted(records, key=lambda item: item.get("created_at", ""), reverse=True)

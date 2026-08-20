@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Windows 本地 SDXL Safetensors 生图工作台">
   <title>SDXL Safetensors Studio</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260820205558">
+  <link rel="stylesheet" href="/static/styles.css?v=20260820210728">
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到工作区</a>
@@ -32,7 +32,23 @@
         </section>
 
         <section class="panel-section">
-          <div class="section-heading"><div><span class="eyebrow">02 / PROMPT</span><h2>提示词</h2></div></div>
+          <div class="section-heading"><div><span class="eyebrow">02 / MODE</span><h2>生成模式</h2></div></div>
+          <div class="mode-switch" role="radiogroup" aria-label="生成模式">
+            <label><input type="radio" name="mode" value="txt2img" checked><span>文生图</span></label>
+            <label><input type="radio" name="mode" value="img2img"><span>图生图</span></label>
+          </div>
+          <div id="img2imgControls" hidden>
+            <label for="initImageInput">参考图 <span class="required-mark">必填</span></label>
+            <input id="initImageInput" type="file" accept="image/png,image/jpeg,image/webp">
+            <div id="initImagePreview" class="init-image-preview" hidden><img id="initImageThumbnail" alt="图生图参考图预览"><button id="removeInitImage" type="button">移除参考图</button></div>
+            <input id="initImageName" type="hidden">
+            <div class="range-row"><label for="strength">重绘强度 <output id="strengthValue">0.65</output></label><input id="strength" type="range" min="0.01" max="1" step="0.01" value="0.65"></div>
+            <p class="helper">越低越接近参考图，越高改动越大。上传后会转换为本地 PNG。</p>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-heading"><div><span class="eyebrow">03 / PROMPT</span><h2>提示词</h2></div></div>
           <label for="prompt">Prompt <span class="required-mark">必填</span></label>
           <textarea id="prompt" name="prompt" rows="6" required placeholder="描述画面主体、构图、光线和风格…"></textarea>
           <label for="negativePrompt">Negative Prompt</label>
@@ -40,7 +56,7 @@
         </section>
 
         <section class="panel-section">
-          <div class="section-heading"><div><span class="eyebrow">03 / OUTPUT</span><h2>生成参数</h2></div></div>
+          <div class="section-heading"><div><span class="eyebrow">04 / OUTPUT</span><h2>生成参数</h2></div></div>
           <div class="field-grid two"><div><label for="width">宽</label><input id="width" name="width" type="number" min="256" max="2048" step="8" value="832"></div><div><label for="height">高</label><input id="height" name="height" type="number" min="256" max="2048" step="8" value="1216"></div></div>
           <div class="field-grid two"><div><label for="cfg">CFG</label><input id="cfg" name="cfg" type="number" min="0" max="30" step="0.1" value="4"></div><div><label for="steps">Steps</label><input id="steps" name="steps" type="number" min="1" max="150" value="30"></div></div>
           <label for="sampler">Sampler</label><select id="sampler" name="sampler"><option>Euler a</option></select>
@@ -74,6 +90,6 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=20260820205558"></script>
+  <script src="/static/app.js?v=20260820210728"></script>
 </body>
 </html>

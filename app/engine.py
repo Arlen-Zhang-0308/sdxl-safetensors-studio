@@ -120,13 +120,24 @@ class GenerationEngine:
         lora_path: Path | None,
         on_image: Callable[[Any, int, int], None],
         on_progress: Callable[[int, int, int], None] | None = None,
+        init_image: Any | None = None,
     ) -> list[dict[str, int]]:
         with self._lock:
             pipeline = self._load_pipeline(model_path)
+            if init_image is not None:
+                from diffusers import StableDiffusionXLImg2ImgPipeline
+
+                pipeline = StableDiffusionXLImg2ImgPipeline(**pipeline.components)
+                pipeline.set_progress_bar_config(disable=True)
             self._set_scheduler(pipeline, request.sampler)
             self._set_lora(pipeline, lora_path, request.lora_scale)
             torch = self._import_torch()
             seeds: list[dict[str, int]] = []
+            steps_per_image = (
+                max(1, round(request.steps * request.strength))
+                if init_image is not None
+                else request.steps
+            )
             for index in range(request.batch_size):
                 seed = request.seed if request.seed >= 0 else random.SystemRandom().randint(0, 2**63 - 1)
                 if request.seed >= 0:
@@ -137,10 +148,13 @@ class GenerationEngine:
                     _pipeline: Any, step: int, _timestep: Any, callback_kwargs: dict[str, Any]
                 ) -> dict[str, Any]:
                     if on_progress is not None:
-                        completed = index * request.steps + min(step + 1, request.steps)
-                        on_progress(completed, request.steps * request.batch_size, index + 1)
+                        completed = index * steps_per_image + min(step + 1, steps_per_image)
+                        on_progress(completed, steps_per_image * request.batch_size, index + 1)
                     return callback_kwargs
 
+                pipeline_kwargs: dict[str, Any] = {}
+                if init_image is not None:
+                    pipeline_kwargs.update(image=init_image, strength=request.strength)
                 with torch.inference_mode():
                     image = pipeline(
                         prompt=request.prompt,
@@ -152,6 +166,7 @@ class GenerationEngine:
                         generator=generator,
                         callback_on_step_end=step_callback,
                         callback_on_step_end_tensor_inputs=["latents"],
+                        **pipeline_kwargs,
                     ).images[0]
                 on_image(image, seed, index)
                 seeds.append({"seed": seed, "index": index})
