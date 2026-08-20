@@ -10,6 +10,9 @@ const loadingState = $("#loadingState");
 const historyGrid = $("#historyGrid");
 const historyEmpty = $("#historyEmpty");
 const toast = $("#toast");
+const inferenceProgress = $("#inferenceProgress");
+const progressPercent = $("#progressPercent");
+const progressDetail = $("#progressDetail");
 let historyItems = [];
 let toastTimer;
 
@@ -97,14 +100,38 @@ function setGenerating(active) {
   if (active) { emptyState.hidden = true; previewGrid.replaceChildren(); }
 }
 
+function updateProgress(task) {
+  const value = Math.max(0, Math.min(100, task.progress ?? 0));
+  inferenceProgress.value = value;
+  inferenceProgress.textContent = `${value}%`;
+  progressPercent.value = `${value}%`;
+  progressDetail.textContent = task.status === "queued"
+    ? task.message
+    : `${task.message} · ${task.current_step}/${task.total_steps} steps`;
+}
+
+function wait(milliseconds) { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
+
+async function waitForTask(taskId) {
+  while (true) {
+    const task = await api(`/api/tasks/${taskId}`);
+    updateProgress(task);
+    if (task.status === "completed") return task;
+    if (task.status === "failed") throw new Error(task.error || "生成失败，请重试。");
+    await wait(250);
+  }
+}
+
 async function generate(event) {
   event.preventDefault();
   if (!form.reportValidity()) return;
   const parameters = collectParameters();
   if (!parameters.model) return notify("请先刷新并选择一个 SDXL 模型。", true);
   setGenerating(true);
+  updateProgress({ progress: 0, status: "queued", message: "任务已进入队列" });
   try {
-    const result = await api("/api/generate", { method: "POST", body: JSON.stringify(parameters) });
+    const accepted = await api("/api/generate", { method: "POST", body: JSON.stringify(parameters) });
+    const result = await waitForTask(accepted.task_id);
     previewGrid.replaceChildren(...result.images.map((item) => {
       const image = new Image();
       image.src = `${item.image_url}?t=${Date.now()}`;

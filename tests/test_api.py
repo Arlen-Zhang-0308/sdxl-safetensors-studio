@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -11,7 +12,9 @@ from app.storage import Storage
 class FakeEngine:
     device = DeviceInfo(kind="cpu", label="CPU test", cuda_available=False, dtype="float32")
 
-    def generate(self, request, model_path, lora_path, on_image):
+    def generate(self, request, model_path, lora_path, on_image, on_progress=None):
+        if on_progress is not None:
+            on_progress(request.steps, request.steps * request.batch_size, 1)
         on_image(Image.new("RGB", (32, 32), "#e6a23c"), 42, 0)
         return [{"seed": 42, "index": 0}]
 
@@ -37,7 +40,19 @@ def test_generate_saves_complete_history(tmp_path: Path, monkeypatch) -> None:
         "/api/generate",
         json={"model": "sdxl.safetensors", "prompt": "amber robot", "negative_prompt": "blur"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 202
+    task_id = response.json()["task_id"]
+    task = None
+    for _ in range(50):
+        task = client.get(f"/api/tasks/{task_id}").json()
+        if task["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.01)
+    assert task is not None
+    assert task["status"] == "completed"
+    assert task["progress"] == 100
+    assert task["current_step"] == 30
+    assert task["images"][0]["seed"] == 42
     history = storage.list_history()
     assert history[0]["prompt"] == "amber robot"
     assert history[0]["negative_prompt"] == "blur"
@@ -51,3 +66,8 @@ def test_reject_bad_dimensions(tmp_path: Path, monkeypatch) -> None:
         "/api/generate", json={"model": "x.safetensors", "prompt": "x", "width": 831}
     )
     assert response.status_code == 422
+
+
+def test_unknown_task_returns_not_found() -> None:
+    response = TestClient(main.app).get("/api/tasks/missing")
+    assert response.status_code == 404

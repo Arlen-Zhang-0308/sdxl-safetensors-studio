@@ -119,6 +119,7 @@ class GenerationEngine:
         model_path: Path,
         lora_path: Path | None,
         on_image: Callable[[Any, int, int], None],
+        on_progress: Callable[[int, int, int], None] | None = None,
     ) -> list[dict[str, int]]:
         with self._lock:
             pipeline = self._load_pipeline(model_path)
@@ -131,6 +132,15 @@ class GenerationEngine:
                 if request.seed >= 0:
                     seed += index
                 generator = torch.Generator(device=self.device.kind).manual_seed(seed)
+
+                def step_callback(
+                    _pipeline: Any, step: int, _timestep: Any, callback_kwargs: dict[str, Any]
+                ) -> dict[str, Any]:
+                    if on_progress is not None:
+                        completed = index * request.steps + min(step + 1, request.steps)
+                        on_progress(completed, request.steps * request.batch_size, index + 1)
+                    return callback_kwargs
+
                 with torch.inference_mode():
                     image = pipeline(
                         prompt=request.prompt,
@@ -140,6 +150,8 @@ class GenerationEngine:
                         guidance_scale=request.cfg,
                         num_inference_steps=request.steps,
                         generator=generator,
+                        callback_on_step_end=step_callback,
+                        callback_on_step_end_tensor_inputs=["latents"],
                     ).images[0]
                 on_image(image, seed, index)
                 seeds.append({"seed": seed, "index": index})

@@ -41,3 +41,16 @@
 |---|---|---|
 | `.gitignore` | 修改 | 排除交付用 `sdxl-safetensors-studio.zip`，避免将构建产物纳入初始提交 |
 | 项目 Git 仓库 | 初始化 | 以当前项目源文件作为初始版本，本地提交身份使用 `arlen` |
+
+## 2026-08-20 推理进度条
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/tasks.py` | 新建 | 提供线程安全的内存任务状态和进度快照 |
+| `app/engine.py` | 修改 | 接入 Diffusers `callback_on_step_end`，逐采样 step 上报真实进度 |
+| `app/main.py` | 修改 | 生图接口改为后台任务，新增任务状态查询 API |
+| `static/index.html` | 修改 | 在推理状态区增加语义化进度条、百分比和 step 文本 |
+| `static/styles.css` | 修改 | 增加琥珀色推理进度轨道及状态布局 |
+| `static/app.js` | 修改 | 创建任务后轮询进度，完成后显示图片并刷新历史 |
+| `tests/test_api.py` | 修改 | 覆盖任务创建、状态查询、100% 完成和未知任务 |
+| `tests/test_tasks.py` | 新建 | 覆盖任务状态更新和快照隔离 |

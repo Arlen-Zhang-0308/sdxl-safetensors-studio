@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Windows 本地 SDXL Safetensors 生图工作台">
   <title>SDXL Safetensors Studio</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260820204039">
+  <link rel="stylesheet" href="/static/styles.css?v=20260820205558">
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到工作区</a>
@@ -56,7 +56,12 @@
         <div class="preview-header"><div><span class="eyebrow">LIVE OUTPUT</span><h1 id="previewTitle">生成预览</h1></div><span id="stageMeta" class="mono">832 × 1216</span></div>
         <div id="previewStage" class="preview-stage">
           <div id="emptyState" class="empty-state"><div class="aperture" aria-hidden="true"><span></span></div><strong>等待生成任务</strong><p>选择 SDXL 模型，填写提示词后开始生成。</p></div>
-          <div id="loadingState" class="loading-state" hidden><div class="loader" aria-hidden="true"></div><strong>正在推理</strong><p>首次加载模型会花费更长时间，请勿关闭窗口。</p></div>
+          <div id="loadingState" class="loading-state" hidden>
+            <div class="loader" aria-hidden="true"></div><strong id="progressTitle">正在准备推理</strong>
+            <div class="progress-header"><span id="progressDetail">等待模型加载</span><output id="progressPercent">0%</output></div>
+            <progress id="inferenceProgress" max="100" value="0" aria-labelledby="progressTitle progressDetail">0%</progress>
+            <p>首次加载模型会花费更长时间，请勿关闭窗口。</p>
+          </div>
           <div id="previewGrid" class="preview-grid"></div>
         </div>
       </section>
@@ -69,6 +74,6 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=20260820204039"></script>
+  <script src="/static/app.js?v=20260820205558"></script>
 </body>
 </html>

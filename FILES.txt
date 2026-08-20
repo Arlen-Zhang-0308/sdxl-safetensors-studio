@@ -8,6 +8,7 @@
 ./app/main.py
 ./app/schemas.py
 ./app/storage.py
+./app/tasks.py
 ./data/history/.gitkeep
 ./file-audit.md
 ./install_windows.bat
@@ -21,3 +22,4 @@
 ./static/styles.css
 ./tests/test_api.py
 ./tests/test_storage.py
+./tests/test_tasks.py
