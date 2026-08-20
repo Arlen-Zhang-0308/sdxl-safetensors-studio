@@ -110,3 +110,22 @@
 | `README.md` | 修改 | 增加局部重绘操作与存储说明 |
 | `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
 | `FILES.txt` | 修改 | 重新生成项目目录清单 |
+
+## 2026-08-21 IP-Adapter 与扩展采样器
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/schemas.py` | 修改 | 增加 IP-Adapter 包、图像提示和 0–2 强度参数及成对校验 |
+| `app/storage.py` | 修改 | 扫描完整本地适配器包、安全解析权重并返回历史图像提示 URL |
+| `app/engine.py` | 修改 | 支持离线加载/切换 IP-Adapter，并扩展 21 个 SDXL 采样配置 |
+| `app/main.py` | 修改 | 接入适配器包、图像提示与采样器状态和后台任务 |
+| `static/index.html` | 修改 | 增加 IP-Adapter 选择、图像上传预览和强度控件 |
+| `static/app.js` | 修改 | 增加适配器扫描、上传、提交、校验和历史参数恢复 |
+| `tests/test_api.py` | 修改 | 覆盖适配器生成、历史记录、成对校验及采样器数量 |
+| `tests/test_storage.py` | 修改 | 覆盖完整包扫描、不完整包忽略和安全路径 |
+| `ip_adapters/.gitkeep` | 新建 | 保留本地 IP-Adapter 包目录 |
+| `.gitignore` | 修改 | 排除本地适配器权重与图像编码器文件 |
+| `install_windows.bat` | 修改 | 安装完成提示增加适配器目录说明 |
+| `README.md` | 修改 | 增加适配器包结构、操作说明和采样器说明 |
+| `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
+| `FILES.txt` | 修改 | 重新生成项目目录清单 |

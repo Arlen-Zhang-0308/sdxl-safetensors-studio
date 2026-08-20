@@ -1,6 +1,6 @@
 {
   "project": "sdxl-safetensors-studio",
-  "generated_at": "2026-08-21T00:28:12+08:00",
+  "generated_at": "2026-08-21T00:58:33+08:00",
   "files": [
     ".gitignore",
     ".musa-manifest.json",
@@ -18,6 +18,7 @@
     "data/inputs/.gitkeep",
     "file-audit.md",
     "install_windows.bat",
+    "ip_adapters/.gitkeep",
     "loras/.gitkeep",
     "models/.gitkeep",
     "pyproject.toml",

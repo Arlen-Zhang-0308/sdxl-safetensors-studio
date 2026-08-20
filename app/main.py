@@ -24,7 +24,29 @@ app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.mount("/history", StaticFiles(directory=storage.history_dir), name="history")
 app.mount("/inputs", StaticFiles(directory=storage.inputs_dir), name="inputs")
 
-SAMPLERS = ["Euler a", "Euler", "DPM++ 2M Karras", "UniPC"]
+SAMPLERS = [
+    "Euler a",
+    "Euler",
+    "Euler Karras",
+    "Heun",
+    "Heun Karras",
+    "LMS",
+    "LMS Karras",
+    "DDIM",
+    "PNDM",
+    "DPM2",
+    "DPM2 Karras",
+    "DPM2 a",
+    "DPM2 a Karras",
+    "DPM++ 2M",
+    "DPM++ 2M Karras",
+    "DPM++ 2M SDE",
+    "DPM++ 2M SDE Karras",
+    "DPM++ 2S",
+    "DPM++ 2S Karras",
+    "DEIS",
+    "UniPC",
+]
 
 
 @app.get("/")
@@ -47,6 +69,7 @@ def status() -> dict:
             "seed": -1,
             "batch_size": 1,
             "lora_scale": 1.0,
+            "ip_adapter_scale": 0.6,
         },
     }
 
@@ -102,8 +125,10 @@ def run_generation(
     request: GenerateRequest,
     model_path: Path,
     lora_path: Path | None,
+    ip_adapter_path: Path | None,
     init_image_path: Path | None,
     mask_image_path: Path | None,
+    ip_adapter_image_path: Path | None,
 ) -> None:
     generated: list[dict] = []
 
@@ -144,14 +169,20 @@ def run_generation(
                 mask_image = source.convert("L").resize(
                     (request.width, request.height), Image.Resampling.NEAREST
                 )
+        ip_adapter_image = None
+        if ip_adapter_image_path is not None:
+            with Image.open(ip_adapter_image_path) as source:
+                ip_adapter_image = source.convert("RGB")
         engine.generate(
             request,
             model_path,
             lora_path,
+            ip_adapter_path,
             save_image,
             update_progress,
             init_image=init_image,
             mask_image=mask_image,
+            ip_adapter_image=ip_adapter_image,
         )
         tasks.update(
             task_id,
@@ -194,11 +225,19 @@ def generate(request: GenerateRequest) -> dict:
     try:
         model_path = storage.model_path(request.model)
         lora_path = storage.lora_path(request.lora) if request.lora else None
+        ip_adapter_path = (
+            storage.ip_adapter_path(request.ip_adapter) if request.ip_adapter else None
+        )
         init_image_path = (
             storage.input_image_path(request.init_image) if request.mode == "img2img" else None
         )
         mask_image_path = (
             storage.input_image_path(request.mask_image) if request.mask_image else None
+        )
+        ip_adapter_image_path = (
+            storage.input_image_path(request.ip_adapter_image)
+            if request.ip_adapter_image
+            else None
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -211,7 +250,16 @@ def generate(request: GenerateRequest) -> dict:
     task_id = tasks.create(total_steps)
     threading.Thread(
         target=run_generation,
-        args=(task_id, request, model_path, lora_path, init_image_path, mask_image_path),
+        args=(
+            task_id,
+            request,
+            model_path,
+            lora_path,
+            ip_adapter_path,
+            init_image_path,
+            mask_image_path,
+            ip_adapter_image_path,
+        ),
         daemon=True,
     ).start()
     return {"task_id": task_id}

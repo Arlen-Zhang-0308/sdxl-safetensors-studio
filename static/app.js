@@ -2,6 +2,7 @@ const $ = (selector) => document.querySelector(selector);
 const form = $("#generateForm");
 const modelSelect = $("#model");
 const loraSelect = $("#lora");
+const ipAdapterSelect = $("#ipAdapter");
 const refreshButton = $("#refreshWeights");
 const generateButton = $("#generateButton");
 const previewGrid = $("#previewGrid");
@@ -20,6 +21,8 @@ const maskEditor = $("#maskEditor");
 const maskSourceCanvas = $("#maskSourceCanvas");
 const maskPaintCanvas = $("#maskPaintCanvas");
 const maskImageName = $("#maskImageName");
+const ipAdapterImageInput = $("#ipAdapterImageInput");
+const ipAdapterImageName = $("#ipAdapterImageName");
 let maskTool = "brush";
 let maskDrawing = false;
 let maskDirty = false;
@@ -32,6 +35,35 @@ function notify(message, error = false) {
   toast.textContent = message;
   toast.className = `toast show${error ? " error" : ""}`;
   toastTimer = setTimeout(() => { toast.className = "toast"; }, 4500);
+}
+
+function updateIpAdapterControls() {
+  const active = Boolean(ipAdapterSelect.value);
+  $("#ipAdapterControls").hidden = !active;
+  ipAdapterImageInput.required = active && !ipAdapterImageName.value;
+}
+
+function showIpAdapterImage(filename, imageUrl) {
+  ipAdapterImageName.value = filename || "";
+  $("#ipAdapterImageThumbnail").src = imageUrl || "";
+  $("#ipAdapterImagePreview").hidden = !filename;
+  updateIpAdapterControls();
+}
+
+async function uploadIpAdapterImage() {
+  const file = ipAdapterImageInput.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append("file", file);
+  ipAdapterImageInput.disabled = true;
+  try {
+    const uploaded = await api("/api/images/upload", { method: "POST", body: formData });
+    showIpAdapterImage(uploaded.filename, uploaded.image_url);
+    notify("IP-Adapter 图像提示已上传到本机");
+  } catch (error) {
+    ipAdapterImageInput.value = "";
+    notify(error.message, true);
+  } finally { ipAdapterImageInput.disabled = false; }
 }
 
 async function api(path, options = {}) {
@@ -72,14 +104,16 @@ async function loadStatus() {
 async function refreshWeights(showMessage = true) {
   const oldModel = modelSelect.value;
   const oldLora = loraSelect.value;
+  const oldIpAdapter = ipAdapterSelect.value;
   refreshButton.disabled = true;
   try {
     const data = await api("/api/weights/refresh", { method: "POST" });
     fillSelect(modelSelect, data.models, data.models.length ? "选择 SDXL 模型" : "models 目录中没有模型", oldModel);
     fillSelect(loraSelect, data.loras, "不使用 LoRA", oldLora);
+    fillSelect(ipAdapterSelect, data.ip_adapters, "不使用 IP-Adapter", oldIpAdapter);
     if (!modelSelect.value && data.models.length === 1) modelSelect.value = data.models[0];
     updateModelState();
-    if (showMessage) notify(`已扫描到 ${data.models.length} 个模型、${data.loras.length} 个 LoRA`);
+    if (showMessage) notify(`已扫描到 ${data.models.length} 个模型、${data.loras.length} 个 LoRA、${data.ip_adapters.length} 个 IP-Adapter`);
   } catch (error) { notify(error.message, true); }
   finally { refreshButton.disabled = false; }
 }
@@ -97,6 +131,9 @@ function collectParameters() {
     model: modelSelect.value,
     lora: loraSelect.value || null,
     lora_scale: Number($("#loraScale").value),
+    ip_adapter: ipAdapterSelect.value || null,
+    ip_adapter_image: ipAdapterSelect.value ? ipAdapterImageName.value || null : null,
+    ip_adapter_scale: Number($("#ipAdapterScale").value),
     prompt: $("#prompt").value.trim(),
     negative_prompt: $("#negativePrompt").value.trim(),
     width: Number($("#width").value),
@@ -286,6 +323,7 @@ async function generate(event) {
   let parameters = collectParameters();
   if (!parameters.model) return notify("请先刷新并选择一个 SDXL 模型。", true);
   if (parameters.mode === "img2img" && !parameters.init_image) return notify("请先上传图生图参考图。", true);
+  if (parameters.ip_adapter && !parameters.ip_adapter_image) return notify("请上传 IP-Adapter 图像提示。", true);
   setGenerating(true);
   updateProgress({ progress: 0, status: "queued", message: "任务已进入队列" });
   try {
@@ -374,8 +412,12 @@ function applyParameters(item) {
   setMode(item.mode ?? "txt2img");
   ensureOption(modelSelect, item.model, "");
   ensureOption(loraSelect, item.lora, "");
+  ensureOption(ipAdapterSelect, item.ip_adapter, "");
   $("#loraScale").value = item.lora_scale ?? 1;
   $("#loraScaleValue").value = Number(item.lora_scale ?? 1).toFixed(2);
+  $("#ipAdapterScale").value = item.ip_adapter_scale ?? 0.6;
+  $("#ipAdapterScaleValue").value = Number(item.ip_adapter_scale ?? 0.6).toFixed(2);
+  showIpAdapterImage(item.ip_adapter_image ?? "", item.ip_adapter_image_url ?? "");
   $("#prompt").value = item.prompt ?? "";
   $("#negativePrompt").value = item.negative_prompt ?? "";
   $("#width").value = item.width ?? 832;
@@ -403,8 +445,12 @@ function applyParameters(item) {
 function updateStageMeta() { $("#stageMeta").textContent = `${$("#width").value} × ${$("#height").value}`; }
 refreshButton.addEventListener("click", () => refreshWeights(true));
 modelSelect.addEventListener("change", updateModelState);
+ipAdapterSelect.addEventListener("change", updateIpAdapterControls);
 form.addEventListener("submit", generate);
 $("#loraScale").addEventListener("input", (event) => { $("#loraScaleValue").value = Number(event.target.value).toFixed(2); });
+$("#ipAdapterScale").addEventListener("input", (event) => { $("#ipAdapterScaleValue").value = Number(event.target.value).toFixed(2); });
+ipAdapterImageInput.addEventListener("change", uploadIpAdapterImage);
+$("#removeIpAdapterImage").addEventListener("click", () => { ipAdapterImageInput.value = ""; showIpAdapterImage("", ""); });
 document.querySelectorAll('input[name="mode"]').forEach((input) => input.addEventListener("change", () => setMode(input.value)));
 initImageInput.addEventListener("change", uploadInitImage);
 $("#removeInitImage").addEventListener("click", () => { initImageInput.value = ""; showInitImage("", ""); });

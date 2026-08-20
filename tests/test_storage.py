@@ -11,17 +11,27 @@ def test_scan_only_safetensors(tmp_path: Path) -> None:
     (storage.models_dir / "A.SAFETENSORS").touch()
     (storage.models_dir / "ignore.ckpt").touch()
     (storage.loras_dir / "detail.safetensors").touch()
+    adapter = storage.ip_adapters_dir / "sdxl-plus"
+    (adapter / "image_encoder").mkdir(parents=True)
+    (adapter / "ip-adapter-plus_sdxl_vit-h.safetensors").touch()
+    incomplete = storage.ip_adapters_dir / "incomplete"
+    incomplete.mkdir()
+    (incomplete / "ip-adapter.safetensors").touch()
 
     assert storage.scan_weights() == {
         "models": ["A.SAFETENSORS", "z.safetensors"],
         "loras": ["detail.safetensors"],
+        "ip_adapters": ["sdxl-plus"],
     }
+    assert storage.ip_adapter_path("sdxl-plus").name == "ip-adapter-plus_sdxl_vit-h.safetensors"
 
 
 def test_reject_traversal(tmp_path: Path) -> None:
     storage = Storage(tmp_path)
     with pytest.raises(FileNotFoundError):
         storage.model_path("../secret.safetensors")
+    with pytest.raises(FileNotFoundError):
+        storage.ip_adapter_path("../secret")
 
 
 def test_history_newest_first(tmp_path: Path) -> None:

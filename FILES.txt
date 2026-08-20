@@ -14,6 +14,7 @@
 ./data/inputs/.gitkeep
 ./file-audit.md
 ./install_windows.bat
+./ip_adapters/.gitkeep
 ./loras/.gitkeep
 ./models/.gitkeep
 ./pyproject.toml

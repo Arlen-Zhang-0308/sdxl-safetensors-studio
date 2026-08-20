@@ -14,3 +14,6 @@ data/inputs/*.png
 !loras/.gitkeep
 !data/history/.gitkeep
 !data/inputs/.gitkeep
+
+ip_adapters/*
+!ip_adapters/.gitkeep

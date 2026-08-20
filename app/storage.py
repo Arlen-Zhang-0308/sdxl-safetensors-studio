@@ -15,9 +15,16 @@ class Storage:
         self.root = root.resolve()
         self.models_dir = self.root / "models"
         self.loras_dir = self.root / "loras"
+        self.ip_adapters_dir = self.root / "ip_adapters"
         self.history_dir = self.root / "data" / "history"
         self.inputs_dir = self.root / "data" / "inputs"
-        for directory in (self.models_dir, self.loras_dir, self.history_dir, self.inputs_dir):
+        for directory in (
+            self.models_dir,
+            self.loras_dir,
+            self.ip_adapters_dir,
+            self.history_dir,
+            self.inputs_dir,
+        ):
             directory.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -28,13 +35,38 @@ class Storage:
         )
 
     def scan_weights(self) -> dict[str, list[str]]:
-        return {"models": self._scan(self.models_dir), "loras": self._scan(self.loras_dir)}
+        ip_adapters = sorted(
+            (
+                path.name
+                for path in self.ip_adapters_dir.iterdir()
+                if path.is_dir()
+                and (path / "image_encoder").is_dir()
+                and any(child.suffix.lower() == ".safetensors" for child in path.iterdir())
+            ),
+            key=str.casefold,
+        )
+        return {
+            "models": self._scan(self.models_dir),
+            "loras": self._scan(self.loras_dir),
+            "ip_adapters": ip_adapters,
+        }
 
     def model_path(self, name: str) -> Path:
         return self._safe_weight(self.models_dir, name)
 
     def lora_path(self, name: str) -> Path:
         return self._safe_weight(self.loras_dir, name)
+
+    def ip_adapter_path(self, name: str) -> Path:
+        package = (self.ip_adapters_dir / name).resolve()
+        if package.parent != self.ip_adapters_dir.resolve() or not package.is_dir():
+            raise FileNotFoundError("非法 IP-Adapter 包名")
+        weights = sorted(
+            path for path in package.iterdir() if path.suffix.lower() == ".safetensors"
+        )
+        if not weights or not (package / "image_encoder").is_dir():
+            raise FileNotFoundError(f"IP-Adapter 包不完整：{name}")
+        return weights[0]
 
     def input_image_path(self, name: str) -> Path:
         candidate = (self.inputs_dir / name).resolve()
@@ -79,6 +111,7 @@ class Storage:
                 if (self.history_dir / image_name).is_file():
                     init_image = item.get("init_image")
                     mask_image = item.get("mask_image")
+                    ip_adapter_image = item.get("ip_adapter_image")
                     records.append(
                         {
                             **item,
@@ -86,6 +119,9 @@ class Storage:
                             "image_url": f"/history/{image_name}",
                             "init_image_url": f"/inputs/{init_image}" if init_image else None,
                             "mask_image_url": f"/inputs/{mask_image}" if mask_image else None,
+                            "ip_adapter_image_url": (
+                                f"/inputs/{ip_adapter_image}" if ip_adapter_image else None
+                            ),
                         }
                     )
             except (OSError, json.JSONDecodeError):

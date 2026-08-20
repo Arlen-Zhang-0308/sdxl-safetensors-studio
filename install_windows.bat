@@ -24,7 +24,8 @@ py -3.12 -m pip install -r requirements.txt
 if errorlevel 1 goto :failed
 
 echo.
-echo [OK] Installation complete. Put SDXL files in models and LoRA files in loras.
+echo [OK] Installation complete. Put SDXL files in models, LoRA files in loras,
+echo      and complete local IP-Adapter packages in ip_adapters.
 pause
 exit /b 0
 

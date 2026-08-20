@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Windows 本地 SDXL Safetensors 生图工作台">
   <title>SDXL Safetensors Studio</title>
-  <link rel="stylesheet" href="/static/styles.css?v=202608210021">
+  <link rel="stylesheet" href="/static/styles.css?v=202608210054">
 </head>
 <body>
   <a class="skip-link" href="#workspace">跳到工作区</a>
@@ -28,7 +28,16 @@
           <label for="lora">LoRA 模型</label>
           <select id="lora" name="lora"><option value="">不使用 LoRA</option></select>
           <div class="range-row"><label for="loraScale">LoRA 权重 <output id="loraScaleValue">1.00</output></label><input id="loraScale" name="lora_scale" type="range" min="-4" max="4" step="0.05" value="1"></div>
-          <p class="helper">权重目录：<code>models/</code>　LoRA：<code>loras/</code></p>
+          <label for="ipAdapter">IP-Adapter</label>
+          <select id="ipAdapter"><option value="">不使用 IP-Adapter</option></select>
+          <div id="ipAdapterControls" hidden>
+            <label for="ipAdapterImageInput">图像提示 <span class="required-mark">必填</span></label>
+            <input id="ipAdapterImageInput" type="file" accept="image/png,image/jpeg,image/webp">
+            <div id="ipAdapterImagePreview" class="init-image-preview" hidden><img id="ipAdapterImageThumbnail" alt="IP-Adapter 图像提示预览"><button id="removeIpAdapterImage" type="button">移除图像</button></div>
+            <input id="ipAdapterImageName" type="hidden">
+            <div class="range-row"><label for="ipAdapterScale">图像影响强度 <output id="ipAdapterScaleValue">0.60</output></label><input id="ipAdapterScale" type="range" min="0" max="2" step="0.05" value="0.6"></div>
+          </div>
+          <p class="helper">模型：<code>models/</code>　LoRA：<code>loras/</code>　IP-Adapter：<code>ip_adapters/</code></p>
         </section>
 
         <section class="panel-section">
@@ -106,6 +115,6 @@
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=202608210021"></script>
+  <script src="/static/app.js?v=202608210054"></script>
 </body>
 </html>

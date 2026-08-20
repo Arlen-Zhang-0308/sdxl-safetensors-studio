@@ -15,19 +15,25 @@ class FakeEngine:
 
     last_init_image = None
     last_mask_image = None
+    last_ip_adapter_image = None
+    last_ip_adapter_path = None
 
     def generate(
         self,
         request,
         model_path,
         lora_path,
+        ip_adapter_path,
         on_image,
         on_progress=None,
         init_image=None,
         mask_image=None,
+        ip_adapter_image=None,
     ):
         self.last_init_image = init_image
         self.last_mask_image = mask_image
+        self.last_ip_adapter_image = ip_adapter_image
+        self.last_ip_adapter_path = ip_adapter_path
         if on_progress is not None:
             on_progress(request.steps, request.steps * request.batch_size, 1)
         on_image(Image.new("RGB", (32, 32), "#e6a23c"), 42, 0)
@@ -42,6 +48,7 @@ def test_status_and_refresh(tmp_path: Path, monkeypatch) -> None:
 
     assert client.get("/api/status").json()["defaults"]["width"] == 832
     assert client.get("/api/status").json()["defaults"]["clip_skip"] == 2
+    assert len(client.get("/api/status").json()["samplers"]) == 21
     assert client.post("/api/weights/refresh").json()["models"] == ["sdxl.safetensors"]
 
 
@@ -81,6 +88,60 @@ def test_reject_bad_dimensions(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(main, "storage", Storage(tmp_path))
     response = TestClient(main.app).post(
         "/api/generate", json={"model": "x.safetensors", "prompt": "x", "width": 831}
+    )
+    assert response.status_code == 422
+
+
+def test_generate_with_ip_adapter(tmp_path: Path, monkeypatch) -> None:
+    storage = Storage(tmp_path)
+    (storage.models_dir / "sdxl.safetensors").touch()
+    adapter = storage.ip_adapters_dir / "sdxl-plus"
+    (adapter / "image_encoder").mkdir(parents=True)
+    (adapter / "ip-adapter-plus_sdxl_vit-h.safetensors").touch()
+    fake_engine = FakeEngine()
+    monkeypatch.setattr(main, "storage", storage)
+    monkeypatch.setattr(main, "engine", fake_engine)
+    client = TestClient(main.app)
+
+    source = BytesIO()
+    Image.new("RGB", (64, 64), "#775533").save(source, format="PNG")
+    image_name = client.post(
+        "/api/images/upload", files={"file": ("style.png", source.getvalue(), "image/png")}
+    ).json()["filename"]
+    response = client.post(
+        "/api/generate",
+        json={
+            "model": "sdxl.safetensors",
+            "prompt": "portrait",
+            "ip_adapter": "sdxl-plus",
+            "ip_adapter_image": image_name,
+            "ip_adapter_scale": 0.75,
+        },
+    )
+    assert response.status_code == 202
+    task_id = response.json()["task_id"]
+    for _ in range(50):
+        task = client.get(f"/api/tasks/{task_id}").json()
+        if task["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.01)
+    assert task["status"] == "completed"
+    assert fake_engine.last_ip_adapter_path.name == "ip-adapter-plus_sdxl_vit-h.safetensors"
+    assert fake_engine.last_ip_adapter_image.size == (64, 64)
+    history = storage.list_history()[0]
+    assert history["ip_adapter_scale"] == 0.75
+    assert history["ip_adapter_image_url"] == f"/inputs/{image_name}"
+
+
+def test_ip_adapter_requires_weight_and_image_pair(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(main, "storage", Storage(tmp_path))
+    response = TestClient(main.app).post(
+        "/api/generate",
+        json={
+            "model": "x.safetensors",
+            "prompt": "x",
+            "ip_adapter": "sdxl-plus",
+        },
     )
     assert response.status_code == 422
 

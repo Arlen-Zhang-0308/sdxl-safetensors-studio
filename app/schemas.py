@@ -8,6 +8,9 @@ class GenerateRequest(BaseModel):
     model: str
     lora: str | None = None
     lora_scale: float = Field(default=1.0, ge=-4.0, le=4.0)
+    ip_adapter: str | None = None
+    ip_adapter_image: str | None = None
+    ip_adapter_scale: float = Field(default=0.6, ge=0.0, le=2.0)
     prompt: str = Field(min_length=1, max_length=10_000)
     negative_prompt: str = Field(default="", max_length=10_000)
     width: int = Field(default=832, ge=256, le=2048, multiple_of=8)
@@ -22,7 +25,9 @@ class GenerateRequest(BaseModel):
     mask_image: str | None = None
     strength: float = Field(default=0.65, gt=0.0, le=1.0)
 
-    @field_validator("model", "lora", "init_image", "mask_image")
+    @field_validator(
+        "model", "lora", "ip_adapter", "ip_adapter_image", "init_image", "mask_image"
+    )
     @classmethod
     def reject_paths(cls, value: str | None) -> str | None:
         if value is not None and ("/" in value or "\\" in value or value in {".", ".."}):
@@ -35,4 +40,6 @@ class GenerateRequest(BaseModel):
             raise ValueError("图生图模式必须上传参考图")
         if self.mask_image and self.mode != "img2img":
             raise ValueError("蒙版只能用于图生图模式")
+        if bool(self.ip_adapter) != bool(self.ip_adapter_image):
+            raise ValueError("IP-Adapter 权重和参考图必须同时选择")
         return self

@@ -25,6 +25,7 @@ class GenerationEngine:
         self._pipeline: Any = None
         self._model_path: Path | None = None
         self._lora_path: Path | None = None
+        self._ip_adapter_path: Path | None = None
         self._lock = threading.Lock()
         self.device = self._detect_device()
 
@@ -53,6 +54,7 @@ class GenerationEngine:
         self._pipeline = None
         self._model_path = None
         self._lora_path = None
+        self._ip_adapter_path = None
         gc.collect()
         if self.device.cuda_available:
             self._import_torch().cuda.empty_cache()
@@ -86,18 +88,63 @@ class GenerationEngine:
     @staticmethod
     def _set_scheduler(pipeline: Any, sampler: str) -> None:
         from diffusers import (
+            DDIMScheduler,
+            DEISMultistepScheduler,
             DPMSolverMultistepScheduler,
+            DPMSolverSinglestepScheduler,
             EulerAncestralDiscreteScheduler,
             EulerDiscreteScheduler,
+            HeunDiscreteScheduler,
+            KDPM2AncestralDiscreteScheduler,
+            KDPM2DiscreteScheduler,
+            LMSDiscreteScheduler,
+            PNDMScheduler,
             UniPCMultistepScheduler,
         )
 
         schedulers = {
             "Euler a": lambda config: EulerAncestralDiscreteScheduler.from_config(config),
             "Euler": lambda config: EulerDiscreteScheduler.from_config(config),
+            "Euler Karras": lambda config: EulerDiscreteScheduler.from_config(
+                config, use_karras_sigmas=True
+            ),
+            "Heun": lambda config: HeunDiscreteScheduler.from_config(config),
+            "Heun Karras": lambda config: HeunDiscreteScheduler.from_config(
+                config, use_karras_sigmas=True
+            ),
+            "LMS": lambda config: LMSDiscreteScheduler.from_config(config),
+            "LMS Karras": lambda config: LMSDiscreteScheduler.from_config(
+                config, use_karras_sigmas=True
+            ),
+            "DDIM": lambda config: DDIMScheduler.from_config(config),
+            "PNDM": lambda config: PNDMScheduler.from_config(config),
+            "DPM2": lambda config: KDPM2DiscreteScheduler.from_config(config),
+            "DPM2 Karras": lambda config: KDPM2DiscreteScheduler.from_config(
+                config, use_karras_sigmas=True
+            ),
+            "DPM2 a": lambda config: KDPM2AncestralDiscreteScheduler.from_config(config),
+            "DPM2 a Karras": lambda config: KDPM2AncestralDiscreteScheduler.from_config(
+                config, use_karras_sigmas=True
+            ),
+            "DPM++ 2M": lambda config: DPMSolverMultistepScheduler.from_config(
+                config, algorithm_type="dpmsolver++"
+            ),
             "DPM++ 2M Karras": lambda config: DPMSolverMultistepScheduler.from_config(
                 config, algorithm_type="dpmsolver++", use_karras_sigmas=True
             ),
+            "DPM++ 2M SDE": lambda config: DPMSolverMultistepScheduler.from_config(
+                config, algorithm_type="sde-dpmsolver++"
+            ),
+            "DPM++ 2M SDE Karras": lambda config: DPMSolverMultistepScheduler.from_config(
+                config, algorithm_type="sde-dpmsolver++", use_karras_sigmas=True
+            ),
+            "DPM++ 2S": lambda config: DPMSolverSinglestepScheduler.from_config(
+                config, algorithm_type="dpmsolver++"
+            ),
+            "DPM++ 2S Karras": lambda config: DPMSolverSinglestepScheduler.from_config(
+                config, algorithm_type="dpmsolver++", use_karras_sigmas=True
+            ),
+            "DEIS": lambda config: DEISMultistepScheduler.from_config(config),
             "UniPC": lambda config: UniPCMultistepScheduler.from_config(config),
         }
         pipeline.scheduler = schedulers[sampler](pipeline.scheduler.config)
@@ -114,18 +161,37 @@ class GenerationEngine:
             pipeline.set_adapters(["default_0"], adapter_weights=[scale])
             self._lora_path = lora_path
 
+    def _set_ip_adapter(self, pipeline: Any, adapter_path: Path | None, scale: float) -> None:
+        if self._ip_adapter_path is not None and self._ip_adapter_path != adapter_path:
+            pipeline.unload_ip_adapter()
+            self._ip_adapter_path = None
+        if adapter_path is not None and self._ip_adapter_path != adapter_path:
+            pipeline.load_ip_adapter(
+                str(adapter_path.parent),
+                weight_name=adapter_path.name,
+                image_encoder_folder="image_encoder",
+                local_files_only=True,
+            )
+            self._ip_adapter_path = adapter_path
+        if adapter_path is not None:
+            pipeline.set_ip_adapter_scale(scale)
+
     def generate(
         self,
         request: GenerateRequest,
         model_path: Path,
         lora_path: Path | None,
+        ip_adapter_path: Path | None,
         on_image: Callable[[Any, int, int], None],
         on_progress: Callable[[int, int, int], None] | None = None,
         init_image: Any | None = None,
         mask_image: Any | None = None,
+        ip_adapter_image: Any | None = None,
     ) -> list[dict[str, int]]:
         with self._lock:
             pipeline = self._load_pipeline(model_path)
+            self._set_lora(pipeline, lora_path, request.lora_scale)
+            self._set_ip_adapter(pipeline, ip_adapter_path, request.ip_adapter_scale)
             if mask_image is not None:
                 from diffusers import StableDiffusionXLInpaintPipeline
 
@@ -137,7 +203,6 @@ class GenerationEngine:
                 pipeline = StableDiffusionXLImg2ImgPipeline(**pipeline.components)
                 pipeline.set_progress_bar_config(disable=True)
             self._set_scheduler(pipeline, request.sampler)
-            self._set_lora(pipeline, lora_path, request.lora_scale)
             torch = self._import_torch()
             seeds: list[dict[str, int]] = []
             steps_per_image = (
@@ -164,6 +229,8 @@ class GenerationEngine:
                     pipeline_kwargs.update(image=init_image, strength=request.strength)
                 if mask_image is not None:
                     pipeline_kwargs["mask_image"] = mask_image
+                if ip_adapter_image is not None:
+                    pipeline_kwargs["ip_adapter_image"] = ip_adapter_image
                 prompt_kwargs = build_sdxl_prompt_kwargs(
                     pipeline, request.prompt, request.negative_prompt, request.clip_skip
                 )
