@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111210'/%3E%3Cpath d='M7 22 16 6l9 16H7Z' fill='none' stroke='%23e6a23c' stroke-width='2'/%3E%3Ccircle cx='16' cy='18' r='3' fill='%23e6a23c'/%3E%3C/svg%3E">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Windows 本地 SDXL Safetensors 生图工作台">
+  <title>SDXL Safetensors Studio</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260820204039">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">跳到工作区</a>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div><strong>SDXL Studio</strong><small>LOCAL SAFETENSORS WORKBENCH</small></div></div>
+    <div class="system-status" aria-live="polite">
+      <span id="deviceBadge" class="status-chip"><i></i><span>检测设备中</span></span>
+      <span id="modelState" class="status-chip muted"><i></i><span>尚未选择模型</span></span>
+    </div>
+  </header>
+
+  <main id="workspace" class="workspace">
+    <aside class="control-panel" aria-label="生成参数">
+      <form id="generateForm">
+        <section class="panel-section">
+          <div class="section-heading"><div><span class="eyebrow">01 / WEIGHTS</span><h2>模型配置</h2></div><button id="refreshWeights" class="refresh-button" type="button" title="重新扫描模型和 LoRA 目录"><span aria-hidden="true">↻</span>刷新</button></div>
+          <label for="model">SDXL 模型</label>
+          <select id="model" name="model" required><option value="">请点击刷新扫描模型</option></select>
+          <label for="lora">LoRA 模型</label>
+          <select id="lora" name="lora"><option value="">不使用 LoRA</option></select>
+          <div class="range-row"><label for="loraScale">LoRA 权重 <output id="loraScaleValue">1.00</output></label><input id="loraScale" name="lora_scale" type="range" min="-4" max="4" step="0.05" value="1"></div>
+          <p class="helper">权重目录：<code>models/</code>　LoRA：<code>loras/</code></p>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-heading"><div><span class="eyebrow">02 / PROMPT</span><h2>提示词</h2></div></div>
+          <label for="prompt">Prompt <span class="required-mark">必填</span></label>
+          <textarea id="prompt" name="prompt" rows="6" required placeholder="描述画面主体、构图、光线和风格…"></textarea>
+          <label for="negativePrompt">Negative Prompt</label>
+          <textarea id="negativePrompt" name="negative_prompt" rows="3" placeholder="low quality, blurry, artifacts…"></textarea>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-heading"><div><span class="eyebrow">03 / OUTPUT</span><h2>生成参数</h2></div></div>
+          <div class="field-grid two"><div><label for="width">宽</label><input id="width" name="width" type="number" min="256" max="2048" step="8" value="832"></div><div><label for="height">高</label><input id="height" name="height" type="number" min="256" max="2048" step="8" value="1216"></div></div>
+          <div class="field-grid two"><div><label for="cfg">CFG</label><input id="cfg" name="cfg" type="number" min="0" max="30" step="0.1" value="4"></div><div><label for="steps">Steps</label><input id="steps" name="steps" type="number" min="1" max="150" value="30"></div></div>
+          <label for="sampler">Sampler</label><select id="sampler" name="sampler"><option>Euler a</option></select>
+          <div class="field-grid two"><div><label for="seed">Seed（-1 随机）</label><input id="seed" name="seed" type="number" min="-1" value="-1"></div><div><label for="batchSize">批量数</label><input id="batchSize" name="batch_size" type="number" min="1" max="4" value="1"></div></div>
+        </section>
+
+        <button id="generateButton" class="primary-button" type="submit"><span class="button-label">开始生成</span><span class="button-meta">CTRL + ENTER</span></button>
+      </form>
+    </aside>
+
+    <section class="stage-column">
+      <section class="preview-panel" aria-labelledby="previewTitle">
+        <div class="preview-header"><div><span class="eyebrow">LIVE OUTPUT</span><h1 id="previewTitle">生成预览</h1></div><span id="stageMeta" class="mono">832 × 1216</span></div>
+        <div id="previewStage" class="preview-stage">
+          <div id="emptyState" class="empty-state"><div class="aperture" aria-hidden="true"><span></span></div><strong>等待生成任务</strong><p>选择 SDXL 模型，填写提示词后开始生成。</p></div>
+          <div id="loadingState" class="loading-state" hidden><div class="loader" aria-hidden="true"></div><strong>正在推理</strong><p>首次加载模型会花费更长时间，请勿关闭窗口。</p></div>
+          <div id="previewGrid" class="preview-grid"></div>
+        </div>
+      </section>
+
+      <section class="history-panel" aria-labelledby="historyTitle">
+        <div class="history-header"><div><span class="eyebrow">LOCAL ARCHIVE</span><h2 id="historyTitle">生成历史</h2></div><span id="historyCount" class="mono">0 IMAGES</span></div>
+        <div id="historyGrid" class="history-grid"></div>
+        <div id="historyEmpty" class="history-empty"><strong>还没有历史图片</strong><p>成功生成的图片和全部参数会自动保存在本机。</p></div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js?v=20260820204039"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "project": "sdxl-safetensors-studio",
+  "generated_at": "2026-08-20T20:55:58+08:00",
+  "files": [
+    ".gitignore",
+    ".musa-manifest.json",
+    "FILES.txt",
+    "LICENSE",
+    "README.md",
+    "app/__init__.py",
+    "app/engine.py",
+    "app/main.py",
+    "app/schemas.py",
+    "app/storage.py",
+    "data/history/.gitkeep",
+    "file-audit.md",
+    "install_windows.bat",
+    "loras/.gitkeep",
+    "models/.gitkeep",
+    "pyproject.toml",
+    "requirements.txt",
+    "start_windows.bat",
+    "static/app.js",
+    "static/index.html",
+    "static/styles.css",
+    "tests/test_api.py",
+    "tests/test_storage.py"
+  ]
+}
