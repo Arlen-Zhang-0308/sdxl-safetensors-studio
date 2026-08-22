@@ -87,7 +87,7 @@ class GenerationEngine:
                 str(model_path),
                 torch_dtype=dtype,
                 local_files_only=True,
-                **({"low_cpu_mem_usage": False} if is_z_image else {}),
+                low_cpu_mem_usage=True,
             )
         else:
             pipeline = StableDiffusionXLPipeline.from_single_file(

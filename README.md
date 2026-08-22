@@ -120,6 +120,8 @@ sdxl-safetensors-studio/
 
 Z-Image 使用专用 Transformer 架构：CUDA 下按官方建议使用 BF16，并保留模型自带的 FlowMatch 调度器，因此页面选择的传统 SD 采样器不会覆盖它。Z-Image 不接收 Clip Skip；当前 SDXL IP-Adapter 也不能用于 Z-Image，若误选会返回明确的兼容性错误。Z-Image 需要 Diffusers 0.36 或更高版本，更新项目后请重新运行 `install_windows.bat`。
 
+目录模型启用 `low_cpu_mem_usage=True`，避免加载多个 checkpoint shards 时先初始化完整模型而产生额外的系统内存峰值。如果前端显示 `Failed to fetch`，后端停在 `Loading checkpoint shards` 或 `Materializing param` 且没有 Python traceback，通常表示 Windows 因系统内存或虚拟内存不足终止了进程；启动脚本会保留窗口并显示退出码提示。此时请关闭占用内存较高的程序，并将 Windows 分页文件设为“系统管理的大小”或适当增大后重试。
+
 ## 开发测试
 
 ```powershell

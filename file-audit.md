@@ -124,6 +124,17 @@
 | `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
 | `FILES.txt` | 检查 | 本次无新增或删除文件，目录清单内容保持不变 |
 
+## 2026-08-22 Z-Image 分片加载内存修复
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/engine.py` | 修改 | 目录模型显式启用 `low_cpu_mem_usage=True`，降低加载 checkpoint shards 时的系统内存峰值 |
+| `tests/test_engine.py` | 修改 | 更新普通目录模型与 Z-Image 的低内存加载参数断言 |
+| `start_windows.bat` | 修改 | 后端异常退出时显示退出码，并提示检查系统 RAM 与 Windows 分页文件 |
+| `README.md` | 修改 | 说明无 traceback 的 `Failed to fetch` 成因及内存排查方法 |
+| `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
+| `FILES.txt` | 检查 | 本次无新增或删除文件，目录清单内容保持不变 |
+
 ## 2026-08-22 Z-Image 管线兼容修复
 
 | 文件 | 类型 | 变更 |

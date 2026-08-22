@@ -88,7 +88,11 @@ def test_load_diffusers_model_directory_with_from_pretrained(tmp_path, monkeypat
     assert calls == {
         "directory": (
             str(model_path),
-            {"torch_dtype": "float32", "local_files_only": True},
+            {
+                "torch_dtype": "float32",
+                "local_files_only": True,
+                "low_cpu_mem_usage": True,
+            },
         )
     }
     assert loaded.device == "cpu"
@@ -138,7 +142,7 @@ def test_load_z_image_without_stable_diffusion_vae_helpers(tmp_path, monkeypatch
             {
                 "torch_dtype": "bfloat16",
                 "local_files_only": True,
-                "low_cpu_mem_usage": False,
+                "low_cpu_mem_usage": True,
             },
         )
     }

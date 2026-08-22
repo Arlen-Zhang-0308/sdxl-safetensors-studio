@@ -17,4 +17,13 @@ if errorlevel 1 (
 )
 start "" http://127.0.0.1:7860
 py -3.12 -m uvicorn app.main:app --host 127.0.0.1 --port 7860
+set "SERVER_EXIT=%ERRORLEVEL%"
+if not "%SERVER_EXIT%"=="0" (
+  echo.
+  echo [ERROR] Backend exited unexpectedly with code %SERVER_EXIT%.
+  echo If this happened while loading checkpoint shards without a Python traceback,
+  echo Windows probably terminated Python because system RAM or virtual memory ran out.
+  echo Close memory-heavy apps and increase the Windows paging file, then try again.
+)
 pause
+exit /b %SERVER_EXIT%
