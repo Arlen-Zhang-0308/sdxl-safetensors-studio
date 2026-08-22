@@ -63,17 +63,24 @@ class GenerationEngine:
         if self._pipeline is not None and self._model_path == model_path:
             return self._pipeline
 
-        from diffusers import StableDiffusionXLPipeline
+        from diffusers import DiffusionPipeline, StableDiffusionXLPipeline
 
         self._unload()
         torch = self._import_torch()
         dtype = torch.float16 if self.device.cuda_available else torch.float32
-        pipeline = StableDiffusionXLPipeline.from_single_file(
-            str(model_path),
-            torch_dtype=dtype,
-            use_safetensors=True,
-            local_files_only=True,
-        )
+        if model_path.is_dir():
+            pipeline = DiffusionPipeline.from_pretrained(
+                str(model_path),
+                torch_dtype=dtype,
+                local_files_only=True,
+            )
+        else:
+            pipeline = StableDiffusionXLPipeline.from_single_file(
+                str(model_path),
+                torch_dtype=dtype,
+                use_safetensors=True,
+                local_files_only=True,
+            )
         if self.device.cuda_available:
             pipeline = pipeline.to("cuda")
             pipeline.enable_vae_slicing()
@@ -193,15 +200,22 @@ class GenerationEngine:
             pipeline = self._load_pipeline(model_path)
             self._set_lora(pipeline, lora_path, request.lora_scale)
             self._set_ip_adapter(pipeline, ip_adapter_path, request.ip_adapter_scale)
+            is_sdxl = getattr(pipeline, "text_encoder_2", None) is not None
             if mask_image is not None:
-                from diffusers import StableDiffusionXLInpaintPipeline
+                from diffusers import StableDiffusionInpaintPipeline, StableDiffusionXLInpaintPipeline
 
-                pipeline = StableDiffusionXLInpaintPipeline(**pipeline.components)
+                pipeline_class = (
+                    StableDiffusionXLInpaintPipeline if is_sdxl else StableDiffusionInpaintPipeline
+                )
+                pipeline = pipeline_class(**pipeline.components)
                 pipeline.set_progress_bar_config(disable=True)
             elif init_image is not None:
-                from diffusers import StableDiffusionXLImg2ImgPipeline
+                from diffusers import StableDiffusionImg2ImgPipeline, StableDiffusionXLImg2ImgPipeline
 
-                pipeline = StableDiffusionXLImg2ImgPipeline(**pipeline.components)
+                pipeline_class = (
+                    StableDiffusionXLImg2ImgPipeline if is_sdxl else StableDiffusionImg2ImgPipeline
+                )
+                pipeline = pipeline_class(**pipeline.components)
                 pipeline.set_progress_bar_config(disable=True)
             self._set_scheduler(pipeline, request.sampler)
             torch = self._import_torch()

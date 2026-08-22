@@ -35,6 +35,18 @@ class Storage:
         )
 
     def scan_weights(self) -> dict[str, list[str]]:
+        models = sorted(
+            (
+                path.name
+                for path in self.models_dir.iterdir()
+                if (
+                    path.is_file()
+                    and path.suffix.lower() in SUPPORTED_WEIGHT_SUFFIXES
+                )
+                or (path.is_dir() and (path / "model_index.json").is_file())
+            ),
+            key=str.casefold,
+        )
         ip_adapters = sorted(
             (
                 path.name
@@ -46,13 +58,20 @@ class Storage:
             key=str.casefold,
         )
         return {
-            "models": self._scan(self.models_dir),
+            "models": models,
             "loras": self._scan(self.loras_dir),
             "ip_adapters": ip_adapters,
         }
 
     def model_path(self, name: str) -> Path:
-        return self._safe_weight(self.models_dir, name)
+        candidate = (self.models_dir / name).resolve()
+        if candidate.parent != self.models_dir.resolve():
+            raise FileNotFoundError("非法模型名称")
+        if candidate.is_file() and candidate.suffix.lower() in SUPPORTED_WEIGHT_SUFFIXES:
+            return candidate
+        if candidate.is_dir() and (candidate / "model_index.json").is_file():
+            return candidate
+        raise FileNotFoundError(f"模型不存在或目录缺少 model_index.json：{name}")
 
     def lora_path(self, name: str) -> Path:
         return self._safe_weight(self.loras_dir, name)

@@ -5,11 +5,16 @@ import pytest
 from app.storage import Storage
 
 
-def test_scan_only_safetensors(tmp_path: Path) -> None:
+def test_scan_safetensors_and_diffusers_model_directories(tmp_path: Path) -> None:
     storage = Storage(tmp_path)
     (storage.models_dir / "z.safetensors").touch()
     (storage.models_dir / "A.SAFETENSORS").touch()
     (storage.models_dir / "ignore.ckpt").touch()
+    diffusers_model = storage.models_dir / "sd-directory"
+    diffusers_model.mkdir()
+    (diffusers_model / "model_index.json").write_text("{}", encoding="utf-8")
+    incomplete_model = storage.models_dir / "incomplete-directory"
+    incomplete_model.mkdir()
     (storage.loras_dir / "detail.safetensors").touch()
     adapter = storage.ip_adapters_dir / "sdxl-plus"
     (adapter / "image_encoder").mkdir(parents=True)
@@ -19,10 +24,11 @@ def test_scan_only_safetensors(tmp_path: Path) -> None:
     (incomplete / "ip-adapter.safetensors").touch()
 
     assert storage.scan_weights() == {
-        "models": ["A.SAFETENSORS", "z.safetensors"],
+        "models": ["A.SAFETENSORS", "sd-directory", "z.safetensors"],
         "loras": ["detail.safetensors"],
         "ip_adapters": ["sdxl-plus"],
     }
+    assert storage.model_path("sd-directory") == diffusers_model
     assert storage.ip_adapter_path("sdxl-plus").name == "ip-adapter-plus_sdxl_vit-h.safetensors"
 
 
@@ -30,6 +36,10 @@ def test_reject_traversal(tmp_path: Path) -> None:
     storage = Storage(tmp_path)
     with pytest.raises(FileNotFoundError):
         storage.model_path("../secret.safetensors")
+    incomplete = storage.models_dir / "incomplete"
+    incomplete.mkdir()
+    with pytest.raises(FileNotFoundError):
+        storage.model_path("incomplete")
     with pytest.raises(FileNotFoundError):
         storage.ip_adapter_path("../secret")
 

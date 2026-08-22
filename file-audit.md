@@ -111,6 +111,19 @@
 | `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
 | `FILES.txt` | 修改 | 重新生成项目目录清单 |
 
+## 2026-08-22 Diffusers 目录模型支持
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/storage.py` | 修改 | 扫描 `models/` 下含 `model_index.json` 的直接子目录，并安全解析文件或目录模型路径 |
+| `app/engine.py` | 修改 | 目录模型改用离线 `DiffusionPipeline.from_pretrained()` 加载，并按单/双文本编码器选择 SD 或 SDXL 图生图、局部重绘管线 |
+| `app/prompt_encoding.py` | 修改 | 对单文本编码器模型使用原生提示词参数，保留 SDXL 双编码器长提示词分块逻辑 |
+| `tests/test_storage.py` | 修改 | 覆盖目录模型扫描、合法解析、不完整目录忽略及路径穿越拒绝 |
+| `tests/test_engine.py` | 修改 | 覆盖目录模型通过 `from_pretrained()` 离线加载及 CPU 放置 |
+| `README.md` | 修改 | 增加目录结构示例、SD/SDXL 自动识别及适配器兼容性说明 |
+| `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
+| `FILES.txt` | 检查 | 本次无新增或删除文件，目录清单内容保持不变 |
+
 ## 2026-08-21 IP-Adapter 本地加载修复
 
 | 文件 | 类型 | 变更 |

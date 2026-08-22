@@ -1,10 +1,10 @@
 # SDXL Safetensors Studio
 
-面向 Windows 的本地 SDXL `.safetensors` 生图工作台，使用 Python 3.12、FastAPI、Diffusers 和 PyTorch。
+面向 Windows 的本地 Stable Diffusion 生图工作台，支持 SDXL 单文件及 Diffusers 目录模型，使用 Python 3.12、FastAPI、Diffusers 和 PyTorch。
 
 ## 功能
 
-- 扫描 `models/` 中的 SDXL 单文件 `.safetensors`，刷新后加入下拉列表。
+- 扫描 `models/` 中的 SDXL 单文件 `.safetensors` 和含 `model_index.json` 的 Diffusers 模型目录，刷新后加入下拉列表。
 - 扫描同级 `loras/` 目录，支持选择 LoRA 和调整权重。
 - 扫描 `ip_adapters/` 中的本地 IP-Adapter 包，支持图像提示和 0–2 影响强度。
 - 默认参数：832×1216、CFG 4、Steps 30、Euler a、Seed -1。
@@ -27,10 +27,22 @@
    ```
 
 2. 双击 `install_windows.bat`。脚本会直接向 Python 3.12 主环境安装依赖，不创建虚拟环境；优先安装 CUDA 版 PyTorch，若安装失败才回退 CPU 版。
-3. 将 SDXL 模型放入 `models/`，例如：
+3. 将模型放入 `models/`。支持 SDXL 单文件：
 
    ```text
    models\my-sdxl-model.safetensors
+   ```
+
+   也支持完整 Diffusers 目录模型：
+
+   ```text
+   models\my-diffusers-model\
+   ├─ model_index.json
+   ├─ scheduler\
+   ├─ text_encoder\
+   ├─ tokenizer\
+   ├─ unet\
+   └─ vae\
    ```
 
 4. 可选：将 SDXL LoRA 放入 `loras/`：
@@ -79,7 +91,7 @@ Diffusers 0.35 的本地适配器加载需要显式指定包根目录；当前�
 sdxl-safetensors-studio/
 ├─ app/                 # FastAPI 和推理引擎
 ├─ static/              # 本地 Web UI
-├─ models/              # SDXL safetensors
+├─ models/              # SDXL safetensors / Diffusers 模型目录
 ├─ loras/               # LoRA safetensors
 ├─ ip_adapters/         # 本地 IP-Adapter 包目录
 ├─ data/history/        # PNG 与完整参数 JSON
@@ -98,9 +110,11 @@ sdxl-safetensors-studio/
 
 ## 模型兼容性
 
-后端通过 `StableDiffusionXLPipeline.from_single_file()` 加载 SDXL 单文件权重。请使用完整 SDXL checkpoint，而不是仅包含 UNet、VAE 或 LoRA 的文件。首次加载可能需要几十秒，并会占用大量内存/显存。
+后端通过 `StableDiffusionXLPipeline.from_single_file()` 加载 SDXL 单文件权重；对于含 `model_index.json` 的模型目录，通过 `DiffusionPipeline.from_pretrained()` 按目录配置自动选择 SD 或 SDXL 管线。目录必须包含配置引用的完整组件，不能只有 UNet、VAE 或 checkpoint 文件。首次加载可能需要几十秒，并会占用大量内存/显存。
 
-默认启用 `local_files_only=True`。模型若缺少 Diffusers 无法从单文件推断的配置，加载会报错而不会自动联网下载；请换用结构完整的 SDXL checkpoint。
+目录模型只扫描 `models/` 的直接子目录；`.cache` 等不含 `model_index.json` 的目录会被忽略。截图所示仅有一个 `text_encoder` 与 `tokenizer`、并带 `v1-5-pruned.ckpt` 的布局通常属于 Stable Diffusion 1.5，而不是 SDXL；当前版本可以加载这种完整 Diffusers 目录，但 SDXL 专用 IP-Adapter 不可与 SD 1.5 模型混用。
+
+默认启用 `local_files_only=True`。模型若缺少本地配置或组件，加载会报错而不会自动联网下载；请换用结构完整的 checkpoint 或 Diffusers 目录。
 
 不同采样器对模型和步数的表现不同。Karras、SDE 及 DPM++ 变体并不保证对所有自定义 checkpoint 都优于 Euler a；建议先固定 seed 对比。
 

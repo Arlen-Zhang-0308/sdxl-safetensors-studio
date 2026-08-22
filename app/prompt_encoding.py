@@ -136,6 +136,9 @@ def build_sdxl_prompt_kwargs(
 ) -> dict[str, Any]:
     effective_clip_skip = clip_skip if clip_skip > 0 else None
     kwargs: dict[str, Any] = {"clip_skip": effective_clip_skip}
+    if getattr(pipe, "tokenizer_2", None) is None:
+        kwargs.update(prompt=prompt, negative_prompt=negative_prompt.strip() or None)
+        return kwargs
     prompt_embeds, pooled_prompt_embeds = average_sdxl_prompt_embeds(
         pipe, prompt, effective_clip_skip
     )
