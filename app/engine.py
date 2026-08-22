@@ -67,12 +67,27 @@ class GenerationEngine:
 
         self._unload()
         torch = self._import_torch()
-        dtype = torch.float16 if self.device.cuda_available else torch.float32
+        model_class = ""
+        if model_path.is_dir():
+            try:
+                import json
+
+                model_class = json.loads(
+                    (model_path / "model_index.json").read_text(encoding="utf-8")
+                ).get("_class_name", "")
+            except (OSError, ValueError, TypeError):
+                pass
+        is_z_image = model_class.startswith("ZImage")
+        if self.device.cuda_available and is_z_image:
+            dtype = torch.bfloat16
+        else:
+            dtype = torch.float16 if self.device.cuda_available else torch.float32
         if model_path.is_dir():
             pipeline = DiffusionPipeline.from_pretrained(
                 str(model_path),
                 torch_dtype=dtype,
                 local_files_only=True,
+                **({"low_cpu_mem_usage": False} if is_z_image else {}),
             )
         else:
             pipeline = StableDiffusionXLPipeline.from_single_file(
@@ -83,8 +98,10 @@ class GenerationEngine:
             )
         if self.device.cuda_available:
             pipeline = pipeline.to("cuda")
-            pipeline.enable_vae_slicing()
-            pipeline.enable_vae_tiling()
+            if hasattr(pipeline, "enable_vae_slicing"):
+                pipeline.enable_vae_slicing()
+            if hasattr(pipeline, "enable_vae_tiling"):
+                pipeline.enable_vae_tiling()
         else:
             pipeline = pipeline.to("cpu")
         pipeline.set_progress_bar_config(disable=True)
@@ -94,6 +111,8 @@ class GenerationEngine:
 
     @staticmethod
     def _set_scheduler(pipeline: Any, sampler: str) -> None:
+        if pipeline.__class__.__name__.startswith("ZImage"):
+            return
         from diffusers import (
             DDIMScheduler,
             DEISMultistepScheduler,
@@ -164,6 +183,8 @@ class GenerationEngine:
                 pass
             self._lora_path = None
         if lora_path is not None:
+            if not hasattr(pipeline, "load_lora_weights"):
+                raise RuntimeError(f"{pipeline.__class__.__name__} 不支持当前 LoRA 加载方式")
             pipeline.load_lora_weights(str(lora_path.parent), weight_name=lora_path.name)
             pipeline.set_adapters(["default_0"], adapter_weights=[scale])
             self._lora_path = lora_path
@@ -173,6 +194,8 @@ class GenerationEngine:
             pipeline.unload_ip_adapter()
             self._ip_adapter_path = None
         if adapter_path is not None and self._ip_adapter_path != adapter_path:
+            if not hasattr(pipeline, "load_ip_adapter"):
+                raise RuntimeError(f"{pipeline.__class__.__name__} 不支持 IP-Adapter")
             pipeline.load_ip_adapter(
                 str(adapter_path.parent),
                 subfolder="",
@@ -200,21 +223,42 @@ class GenerationEngine:
             pipeline = self._load_pipeline(model_path)
             self._set_lora(pipeline, lora_path, request.lora_scale)
             self._set_ip_adapter(pipeline, ip_adapter_path, request.ip_adapter_scale)
+            is_z_image = pipeline.__class__.__name__.startswith("ZImage")
             is_sdxl = getattr(pipeline, "text_encoder_2", None) is not None
             if mask_image is not None:
-                from diffusers import StableDiffusionInpaintPipeline, StableDiffusionXLInpaintPipeline
+                if is_z_image:
+                    from diffusers import ZImageInpaintPipeline
 
-                pipeline_class = (
-                    StableDiffusionXLInpaintPipeline if is_sdxl else StableDiffusionInpaintPipeline
-                )
+                    pipeline_class = ZImageInpaintPipeline
+                else:
+                    from diffusers import (
+                        StableDiffusionInpaintPipeline,
+                        StableDiffusionXLInpaintPipeline,
+                    )
+
+                    pipeline_class = (
+                        StableDiffusionXLInpaintPipeline
+                        if is_sdxl
+                        else StableDiffusionInpaintPipeline
+                    )
                 pipeline = pipeline_class(**pipeline.components)
                 pipeline.set_progress_bar_config(disable=True)
             elif init_image is not None:
-                from diffusers import StableDiffusionImg2ImgPipeline, StableDiffusionXLImg2ImgPipeline
+                if is_z_image:
+                    from diffusers import ZImageImg2ImgPipeline
 
-                pipeline_class = (
-                    StableDiffusionXLImg2ImgPipeline if is_sdxl else StableDiffusionImg2ImgPipeline
-                )
+                    pipeline_class = ZImageImg2ImgPipeline
+                else:
+                    from diffusers import (
+                        StableDiffusionImg2ImgPipeline,
+                        StableDiffusionXLImg2ImgPipeline,
+                    )
+
+                    pipeline_class = (
+                        StableDiffusionXLImg2ImgPipeline
+                        if is_sdxl
+                        else StableDiffusionImg2ImgPipeline
+                    )
                 pipeline = pipeline_class(**pipeline.components)
                 pipeline.set_progress_bar_config(disable=True)
             self._set_scheduler(pipeline, request.sampler)

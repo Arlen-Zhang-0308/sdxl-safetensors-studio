@@ -1,6 +1,6 @@
 # SDXL Safetensors Studio
 
-面向 Windows 的本地 Stable Diffusion 生图工作台，支持 SDXL 单文件及 Diffusers 目录模型，使用 Python 3.12、FastAPI、Diffusers 和 PyTorch。
+面向 Windows 的本地 AI 生图工作台，支持 SDXL 单文件及 Diffusers 目录模型（包括 SD、SDXL 和 Z-Image），使用 Python 3.12、FastAPI、Diffusers 和 PyTorch。
 
 ## 功能
 
@@ -83,7 +83,7 @@ Diffusers 0.35 的本地适配器加载需要显式指定包根目录；当前�
 4. 可选：在“局部重绘蒙版”中涂抹需要修改的区域；红色区域会重绘，透明区域保持原图。
 5. 填写提示词并生成。历史记录的“应用参数”会恢复模式、参考图、蒙版和强度。
 
-未绘制蒙版时仍执行普通图生图；绘制蒙版后会自动切换到 SDXL Inpaint 管线。蒙版会以黑底白区 PNG 保存在 `data/inputs/`。
+未绘制蒙版时仍执行普通图生图；绘制蒙版后会根据模型自动切换到对应的 Inpaint 管线。蒙版会以黑底白区 PNG 保存在 `data/inputs/`。
 
 ## 目录
 
@@ -110,13 +110,15 @@ sdxl-safetensors-studio/
 
 ## 模型兼容性
 
-后端通过 `StableDiffusionXLPipeline.from_single_file()` 加载 SDXL 单文件权重；对于含 `model_index.json` 的模型目录，通过 `DiffusionPipeline.from_pretrained()` 按目录配置自动选择 SD 或 SDXL 管线。目录必须包含配置引用的完整组件，不能只有 UNet、VAE 或 checkpoint 文件。首次加载可能需要几十秒，并会占用大量内存/显存。
+后端通过 `StableDiffusionXLPipeline.from_single_file()` 加载 SDXL 单文件权重；对于含 `model_index.json` 的模型目录，通过 `DiffusionPipeline.from_pretrained()` 按目录配置自动选择 SD、SDXL 或 Z-Image 管线。目录必须包含配置引用的完整组件，不能只有 UNet、VAE、Transformer 或 checkpoint 文件。首次加载可能需要几十秒，并会占用大量内存/显存。
 
 目录模型只扫描 `models/` 的直接子目录；`.cache` 等不含 `model_index.json` 的目录会被忽略。截图所示仅有一个 `text_encoder` 与 `tokenizer`、并带 `v1-5-pruned.ckpt` 的布局通常属于 Stable Diffusion 1.5，而不是 SDXL；当前版本可以加载这种完整 Diffusers 目录，但 SDXL 专用 IP-Adapter 不可与 SD 1.5 模型混用。
 
 默认启用 `local_files_only=True`。模型若缺少本地配置或组件，加载会报错而不会自动联网下载；请换用结构完整的 checkpoint 或 Diffusers 目录。
 
 不同采样器对模型和步数的表现不同。Karras、SDE 及 DPM++ 变体并不保证对所有自定义 checkpoint 都优于 Euler a；建议先固定 seed 对比。
+
+Z-Image 使用专用 Transformer 架构：CUDA 下按官方建议使用 BF16，并保留模型自带的 FlowMatch 调度器，因此页面选择的传统 SD 采样器不会覆盖它。Z-Image 不接收 Clip Skip；当前 SDXL IP-Adapter 也不能用于 Z-Image，若误选会返回明确的兼容性错误。Z-Image 需要 Diffusers 0.36 或更高版本，更新项目后请重新运行 `install_windows.bat`。
 
 ## 开发测试
 

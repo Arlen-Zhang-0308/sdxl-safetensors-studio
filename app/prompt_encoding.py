@@ -135,6 +135,8 @@ def build_sdxl_prompt_kwargs(
     pipe: Any, prompt: str, negative_prompt: str, clip_skip: int
 ) -> dict[str, Any]:
     effective_clip_skip = clip_skip if clip_skip > 0 else None
+    if pipe.__class__.__name__.startswith("ZImage"):
+        return {"prompt": prompt, "negative_prompt": negative_prompt.strip() or None}
     kwargs: dict[str, Any] = {"clip_skip": effective_clip_skip}
     if getattr(pipe, "tokenizer_2", None) is None:
         kwargs.update(prompt=prompt, negative_prompt=negative_prompt.strip() or None)

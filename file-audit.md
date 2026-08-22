@@ -124,6 +124,19 @@
 | `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
 | `FILES.txt` | 检查 | 本次无新增或删除文件，目录清单内容保持不变 |
 
+## 2026-08-22 Z-Image 管线兼容修复
+
+| 文件 | 类型 | 变更 |
+|---|---|---|
+| `app/engine.py` | 修改 | 对 VAE slicing/tiling 采用能力检测；Z-Image 使用 BF16、原生 FlowMatch 调度器和专用 Img2Img/Inpaint 管线；不支持的 IP-Adapter 返回明确错误 |
+| `app/prompt_encoding.py` | 修改 | Z-Image 使用原生提示词参数，不再传入其调用签名不支持的 Clip Skip |
+| `tests/test_engine.py` | 修改 | 覆盖无 VAE 优化方法的 Z-Image 加载、BF16、原生调度器和 IP-Adapter 拒绝逻辑 |
+| `tests/test_prompt_encoding.py` | 修改 | 覆盖 Z-Image 提示词参数不含 Clip Skip |
+| `requirements.txt` | 修改 | 将 Diffusers 最低版本提升至包含 Z-Image 正式支持的 0.36 |
+| `README.md` | 修改 | 增加 Z-Image 架构、精度、调度器、Clip Skip 和适配器兼容说明 |
+| `.musa-manifest.json` | 修改 | 更新生成时间并保持文件目录清单同步 |
+| `FILES.txt` | 检查 | 本次无新增或删除文件，目录清单内容保持不变 |
+
 ## 2026-08-21 IP-Adapter 本地加载修复
 
 | 文件 | 类型 | 变更 |

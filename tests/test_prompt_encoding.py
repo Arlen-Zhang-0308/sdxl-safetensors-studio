@@ -89,3 +89,12 @@ def test_long_prompt_is_chunked_and_averaged() -> None:
     assert kwargs["prompt_embeds"] == 4.0
     assert kwargs["negative_prompt_embeds"] == 2.5
     assert pipe.clip_skips == [2, 2, 2, 2]
+
+
+def test_z_image_uses_native_prompt_without_clip_skip() -> None:
+    ZImagePipeline = type("ZImagePipeline", (), {})
+
+    assert build_sdxl_prompt_kwargs(ZImagePipeline(), "portrait", "blur", 2) == {
+        "prompt": "portrait",
+        "negative_prompt": "blur",
+    }
