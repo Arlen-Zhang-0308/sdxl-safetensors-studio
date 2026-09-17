@@ -30,6 +30,34 @@ let lastMaskPoint = null;
 let historyItems = [];
 let toastTimer;
 
+function closeHistoryLightbox() {
+  const lightbox = $("#historyLightbox");
+  if (!lightbox) return;
+  lightbox.remove();
+  document.body.classList.remove("lightbox-open");
+}
+
+function openHistoryLightbox(item) {
+  closeHistoryLightbox();
+  const lightbox = document.createElement("div");
+  lightbox.id = "historyLightbox";
+  lightbox.className = "history-lightbox";
+  lightbox.setAttribute("role", "dialog");
+  lightbox.setAttribute("aria-modal", "true");
+  lightbox.setAttribute("aria-label", "历史图片放大预览，点击空白处关闭");
+  lightbox.tabIndex = -1;
+  const image = new Image();
+  image.src = item.image_url;
+  image.alt = item.prompt ? `历史生成图：${item.prompt.slice(0, 80)}` : "历史生成图";
+  lightbox.append(image);
+  lightbox.addEventListener("click", (event) => {
+    if (event.target === lightbox) closeHistoryLightbox();
+  });
+  document.body.append(lightbox);
+  document.body.classList.add("lightbox-open");
+  lightbox.focus();
+}
+
 function notify(message, error = false) {
   clearTimeout(toastTimer);
   toast.textContent = message;
@@ -355,6 +383,16 @@ function historyCard(item) {
   image.src = item.image_url;
   image.alt = item.prompt ? `历史生成图：${item.prompt.slice(0, 80)}` : "历史生成图";
   image.loading = "lazy";
+  image.tabIndex = 0;
+  image.setAttribute("role", "button");
+  image.setAttribute("aria-label", `${image.alt}，点击放大`);
+  image.addEventListener("click", () => openHistoryLightbox(item));
+  image.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openHistoryLightbox(item);
+    }
+  });
   const apply = document.createElement("button");
   apply.className = "apply-button";
   apply.type = "button";
@@ -476,6 +514,9 @@ maskPaintCanvas.addEventListener("pointercancel", () => { maskDrawing = false; l
 $("#strength").addEventListener("input", (event) => { $("#strengthValue").value = Number(event.target.value).toFixed(2); });
 $("#width").addEventListener("input", updateStageMeta);
 $("#height").addEventListener("input", updateStageMeta);
-document.addEventListener("keydown", (event) => { if (event.ctrlKey && event.key === "Enter" && !generateButton.disabled) form.requestSubmit(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && $("#historyLightbox")) closeHistoryLightbox();
+  if (event.ctrlKey && event.key === "Enter" && !generateButton.disabled) form.requestSubmit();
+});
 
 Promise.all([loadStatus(), refreshWeights(false), loadHistory()]).catch((error) => notify(error.message, true));
